@@ -121,7 +121,7 @@ test('keeps 18px sidebar padding and the lime PRO button for the Free owner', as
   await expect(page.getByRole('heading', {name:'Ваши разговоры'})).toBeVisible();
   const sidebar = page.locator('.sidebar');
   const button = sidebar.locator('.button--pro');
-  for (const width of [1280, 1024, 800]) {
+  for (const width of [1280, 1024, 821]) {
     await page.setViewportSize({width, height: 900});
     await expect(sidebar).toHaveCSS('padding', '18px');
     await expect(button).toBeVisible();
@@ -138,4 +138,9 @@ test('keeps 18px sidebar padding and the lime PRO button for the Free owner', as
   await page.keyboard.press('Tab');
   await button.focus();
   await expect(button).toHaveCSS('outline-style', 'solid');
+
+  await page.setViewportSize({width: 800, height: 900});
+  await expect(sidebar).toBeHidden();
+  await page.getByRole('button', {name: 'Открыть профиль'}).click();
+  await expect(page.getByRole('dialog').getByRole('button', {name: 'Купить PRO', exact: true})).toBeVisible();
 });
