@@ -5,6 +5,7 @@ export type AccessSession = {
   token: string;
   expiresAt: number;
   plan?: 'pro';
+  offerPro?: true;
 };
 
 export function normalizeAccessCode(value: unknown): string | null {
@@ -15,9 +16,10 @@ export function normalizeAccessCode(value: unknown): string | null {
 
 export function isAccessSession(value: unknown, now = Date.now()): value is AccessSession {
   if (!value || typeof value !== 'object') return false;
-  const {accountId, token, expiresAt, plan} = value as Partial<AccessSession>;
+  const {accountId, token, expiresAt, plan, offerPro} = value as Partial<AccessSession>;
   return typeof accountId === 'string' && /^[a-f0-9]{32}$/.test(accountId)
     && (plan === undefined || plan === 'pro')
+    && (offerPro === undefined || (plan === undefined && offerPro === true))
     && typeof token === 'string' && token.length < 512 && /^v1\.[\w-]+\.[\w-]{43}$/.test(token)
     && typeof expiresAt === 'number' && Number.isSafeInteger(expiresAt)
     && expiresAt > now && expiresAt <= now + ACCESS_DURATION_MS + 60_000;

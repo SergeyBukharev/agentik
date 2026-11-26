@@ -1,13 +1,27 @@
-import {isAccessSession, type AccessSession} from './access-contract';
+import {ACCESS_DURATION_MS, isAccessSession, normalizeAccessCode, type AccessSession} from './access-contract';
 
 const apiOrigin = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 const ACTIVE = 'agentik:access:active';
 const SIGNED_OUT = 'signed-out';
 export const accessKey = (account: string) => `agentik:access:${account}`;
+export const demoAccessEnabled = import.meta.env.VITE_DEMO_ACCESS === 'true' && !apiOrigin;
+export const publicDemoAccounts = demoAccessEnabled ? [
+  {email:'free@demo.agentik.test', code:'FREE26', accountId:'d0000000000000000000000000000001', plan:undefined},
+  {email:'pro@demo.agentik.test', code:'PRO026', accountId:'d0000000000000000000000000000002', plan:'pro' as const},
+] : [];
+
+function isDemoSession(value: unknown): value is AccessSession {
+  if (!value || typeof value !== 'object') return false;
+  const {accountId, token, plan, expiresAt, offerPro} = value as Partial<AccessSession>;
+  const account = publicDemoAccounts.find(item => item.accountId === accountId);
+  const now = Date.now();
+  return !!account && plan === account.plan && offerPro === undefined && token === 'demo.v1.' + accountId
+    && typeof expiresAt === 'number' && Number.isSafeInteger(expiresAt) && expiresAt > now && expiresAt <= now + ACCESS_DURATION_MS + 60_000;
+}
 
 export function accessPreviewHref(path: string) {
   const configured = import.meta.env.VITE_ACCESS_PREVIEW_URL;
-  if (apiOrigin || !configured) return;
+  if (apiOrigin || demoAccessEnabled || !configured) return;
   try {
     const url = new URL(configured);
     if (url.protocol !== 'https:' || url.origin === location.origin || url.username || url.password) return;
@@ -44,6 +58,14 @@ async function request(path: string, init: RequestInit, signal: AbortSignal): Pr
 }
 
 export async function logIn(code: string, signal: AbortSignal, email?: string): Promise<AccessSession> {
+  if (demoAccessEnabled) {
+    signal.throwIfAborted();
+    const normalized = normalizeAccessCode(code);
+    if (!normalized) throw new AccessError('format', 'Введите шесть латинских букв или цифр.');
+    const account = publicDemoAccounts.find(item => item.code === normalized && item.email === email?.trim().toLowerCase());
+    if (!account) throw new AccessError('invalid', 'Код не подошёл. Проверьте код и email.');
+    return {accountId:account.accountId, token:'demo.v1.' + account.accountId, plan:account.plan, expiresAt:Date.now() + ACCESS_DURATION_MS};
+  }
   const response = await request('login', {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code, ...(email ? {email} : {})}),
   }, signal);
@@ -59,18 +81,21 @@ export async function logIn(code: string, signal: AbortSignal, email?: string): 
 }
 
 export async function checkAccessSession(session: AccessSession, signal: AbortSignal) {
+  if (demoAccessEnabled) return isDemoSession(session) ? session : null;
   const response = await request('session', {headers: {Authorization: 'Bearer ' + session.token}}, signal);
   if (response.status === 401) return null;
   if (response.status !== 200) return session;
   const data = await response.json().catch(() => null);
   if (!data || data.accountId !== session.accountId || data.expiresAt !== session.expiresAt) return session;
-  return {...session, plan:data.plan === 'pro' ? 'pro' as const : undefined};
+  return {...session, plan:data.plan === 'pro' ? 'pro' as const : undefined,
+    offerPro:data.plan !== 'pro' && data.offerPro === true ? true as const : undefined};
 }
 
 export function readAccountAccess(account: string): AccessSession | null {
   try {
     const session: unknown = JSON.parse(localStorage.getItem(accessKey(account)) ?? 'null');
-    return isAccessSession(session) && session.accountId === account ? session : null;
+    const valid = demoAccessEnabled ? isDemoSession : isAccessSession;
+    return valid(session) && session.accountId === account ? session : null;
   } catch {
     return null;
   }

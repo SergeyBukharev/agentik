@@ -13,13 +13,15 @@
   padding: 9px;
 }
 .composer__editor {
-  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 4px;
   min-width: 0;
 }
 .composer__editor .composer__input {
   display: block;
   width: 100%;
-  padding-inline-end: 48px;
   resize: none;
 }
 .composer__input[data-expanded='true'] {
@@ -27,9 +29,6 @@
   max-height: none;
 }
 .composer__expand {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-end: 0;
   width: 44px;
   height: 44px;
 }
@@ -174,7 +173,12 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(110deg, transparent 12%, var(--surface) 48%, transparent 79%);
+  --skeleton-shine: var(--surface);
+  --skeleton-glow-angle: 110deg;
+  --skeleton-glow-start: 12%;
+  --skeleton-glow-peak: 48%;
+  --skeleton-glow-end: 79%;
+  background: var(--skeleton-glow);
   animation: sweep 1.45s ease-out infinite;
 }
 @media(max-width: 640px) {

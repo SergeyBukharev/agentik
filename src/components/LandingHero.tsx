@@ -1,69 +1,47 @@
-import {useEffect, useId, useRef, useState, type CSSProperties} from 'react';
+import {useEffect, useRef, useState, type CSSProperties, type MouseEvent} from 'react';
 import {ArrowRight} from 'lucide-react';
-import {ShaderLayer} from './ShaderEffects';
+import {AgentikMark} from './AgentikMark';
+import {allowsMotion, ShaderLayer} from './ShaderEffects';
 import {prefetchScreen} from '../prefetch';
-import {Scene} from './Scene';
 import {useUi} from '../language';
 
-const art = import.meta.env.BASE_URL + 'illustrations/ideas.svg';
-// Keep the shader mask static, independently of the animation inside the exported illustration.
-const silhouette = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220">
-  <rect width="48" height="48" rx="14" transform="translate(76 45) rotate(-9 66 66) scale(2.75)"/>
-  <rect x="211" y="66" width="63" height="74" rx="9" transform="rotate(12 242 103)"/>
-  <path d="M80 153c-28 1-29 19-17 24M193 151c20-9 28-1 29 10" fill="none" stroke="black" stroke-width="3" stroke-linecap="round"/>
-  <path d="m253 29 0 24m-12-12h24m-20-8 16 16m-16 0 16-16" fill="none" stroke="black" stroke-width="3" stroke-linecap="round"/>
-  <circle cx="41" cy="87" r="7"/><path d="m45 161 4 9 10 1-8 6 2 10-8-6-9 5 3-10-7-7 10 1 3-9Z"/>
-</svg>`;
+const art = import.meta.env.BASE_URL + 'favicon.svg';
+const silhouette = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="14"/></svg>';
 const mediaMask = { '--media-mask': `url("data:image/svg+xml,${encodeURIComponent(silhouette)}")` } as CSSProperties;
-
-const streamRays = [-237, -182, -131, -84, -45, -18, 0, 18, 45, 84, 131, 182, 237].map(offset => {
-  const edge = 250 + offset;
-  const inner = 250 + offset * .09;
-  return `M0 ${edge} C240 ${edge}, 365 ${inner}, 600 250 C835 ${inner}, 960 ${edge}, 1200 ${edge}`;
-});
-const glyphTracks = [1, 4, 6, 8, 11];
-const glyphs = '01 A7 T4 9K 0X E8 13 S6 3Q M2 · 01 A7 T4 9K 0X E8 13 S6 3Q M2';
-
-function HeroStream() {
-  const id = useId();
-  const gradient = `url(#${id}-ribbon)`;
-  return <div className="hero-stream" aria-hidden="true">
-    <svg viewBox="0 0 1200 500" preserveAspectRatio="none" focusable="false">
-      <defs>
-        <linearGradient id={id+'-ribbon'}>
-          <stop stopColor="var(--hero-stream-accent)" stopOpacity=".55"/>
-          <stop offset="32%" stopColor="var(--hero-stream-main)"/>
-          <stop offset="50%" stopColor="var(--hero-stream-accent)" stopOpacity=".38"/>
-          <stop offset="74%" stopColor="var(--hero-stream-main)"/>
-          <stop offset="100%" stopColor="var(--hero-stream-accent)" stopOpacity=".55"/>
-        </linearGradient>
-      </defs>
-      <g fill="none" stroke={gradient}>
-        {streamRays.map((path, index) => <path key={path} id={id+'-ray-'+index} d={path} vectorEffect="non-scaling-stroke"/>) }
-        {[3, 6, 9].map(index => <path key={index} d={streamRays[index]} strokeWidth="11" opacity=".13" vectorEffect="non-scaling-stroke"/>) }
-      </g>
-      <g className="hero-stream__glyphs" fill={gradient}>
-        {glyphTracks.map(index => <text key={index} dy={index%2 ? 14 : -5}>
-          <textPath href={`#${id}-ray-${index}`} startOffset={index%2 ? '8%' : '4%'}>{glyphs}</textPath>
-        </text>)}
-      </g>
-    </svg>
-    <span className="hero-stream__signal"/>
-  </div>;
-}
+const waveSize = 240;
+type Wave = {id: number; x: number; y: number; scale: number};
 
 export function LandingHero({signedIn = false}: {signedIn?: boolean}) {
   const {t} = useUi();
   const image = useRef<HTMLImageElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'fallback'>('loading');
+  const waveId = useRef(0);
+  const [waves, setWaves] = useState<Wave[]>([]);
 
   useEffect(() => {
     if (image.current?.complete) setStatus(image.current.naturalWidth ? 'ready' : 'fallback');
   }, []);
 
+  function ripple(event: MouseEvent<HTMLElement>) {
+    if (!event.detail || !allowsMotion() || !(event.target instanceof Element)
+      || event.target.closest('a, button, input, select, textarea, [role="button"]')) return;
+    const banner = event.currentTarget;
+    const bounds = banner.getBoundingClientRect();
+    const x = event.clientX - bounds.left - banner.clientLeft;
+    const y = event.clientY - bounds.top - banner.clientTop;
+    const corner = Math.hypot(Math.max(x, banner.clientWidth - x), Math.max(y, banner.clientHeight - y));
+    // The leading ring sits at 73% of the gradient radius.
+    const wave = {id: ++waveId.current, x, y, scale: corner / (waveSize * .365)};
+    setWaves(current => [...current.slice(-1), wave]);
+  }
+
   return (
-    <section className="hero hero--intro">
-      <HeroStream/>
+    <section className="hero hero--intro" onClick={ripple}>
+      <div className="hero__ripple" aria-hidden="true">
+        {waves.map(wave => <span className="hero__ripple-wave" key={wave.id}
+          style={{left:wave.x, top:wave.y, '--wave-size':`${waveSize}px`, '--wave-scale':wave.scale} as CSSProperties}
+          onAnimationEnd={() => setWaves(current => current.filter(item => item.id !== wave.id))}/>)}
+      </div>
       <div className="hero__content">
         {!signedIn && <p className="hero__label">{t('МАЛЕНЬКИЕ ПОМОЩНИКИ. БОЛЬШИЕ ВОЗМОЖНОСТИ.', 'SMALL ASSISTANTS. BIG POSSIBILITIES.')}</p>}
         <h1 className="hero__title">{t('Меньше рутины.', 'Less routine.')}<br/><span>{t('Больше жизни.', 'More life.')}</span></h1>
@@ -74,15 +52,31 @@ export function LandingHero({signedIn = false}: {signedIn?: boolean}) {
           {signedIn ? t('Выбрать помощника', 'Choose an assistant') : t('Войти по коду', 'Sign in with a code')}<ArrowRight size={18}/>
         </a>
       </div>
-      <div className="hero__illustration">
+      <div className="hero-mark" aria-hidden="true">
+        <svg className="hero-mark__pixels" viewBox="0 0 84 84" shapeRendering="crispEdges" focusable="false">
+          <g className="hero-mark__cluster hero-mark__cluster--top-right">
+            <rect x="62" y="19" width="5" height="5"/>
+            <rect x="68" y="13" width="3" height="3" opacity=".7"/>
+            <rect x="61" y="10" width="2" height="2" opacity=".45"/>
+          </g>
+          <g className="hero-mark__cluster hero-mark__cluster--right">
+            <rect x="65" y="50" width="4" height="4" opacity=".8"/>
+            <rect x="70" y="55" width="2" height="2" opacity=".5"/>
+          </g>
+          <g className="hero-mark__cluster hero-mark__cluster--bottom-left">
+            <rect x="15" y="59" width="5" height="5"/>
+            <rect x="11" y="66" width="3" height="3" opacity=".68"/>
+            <rect x="18" y="70" width="2" height="2" opacity=".48"/>
+          </g>
+        </svg>
         <div className="reveal-media reveal-media--contour" data-status={status}>
           <img
             ref={image}
             className="reveal-media__image"
             src={art}
             alt=""
-            width="320"
-            height="220"
+            width="48"
+            height="48"
             decoding="async"
             onLoad={() => setStatus('ready')}
             onError={() => setStatus('fallback')}
@@ -97,7 +91,9 @@ export function LandingHero({signedIn = false}: {signedIn?: boolean}) {
               <ShaderLayer effect="reveal" duration={690}/>
             </div>
           )}
-          {status === 'fallback' && <div className="reveal-media__fallback"><Scene/></div>}
+          {status === 'fallback' && <div className="reveal-media__fallback">
+            <svg className="hero-mark__fallback" viewBox="0 0 48 48" focusable="false"><AgentikMark/></svg>
+          </div>}
         </div>
       </div>
     </section>

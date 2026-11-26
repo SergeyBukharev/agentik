@@ -56,7 +56,7 @@ export function useAccess() {
       void checkAccessSession(session, controller.signal).then(accepted => {
         if (controller.signal.aborted) return;
         if (!accepted) return expire();
-        if (accepted.plan !== session.plan) {
+        if (accepted.plan !== session.plan || accepted.offerPro !== session.offerPro) {
           refreshSavedAccess(accepted);
           setSession(accepted);
         }
@@ -65,7 +65,7 @@ export function useAccess() {
     const sync = (event: StorageEvent) => {
       if (event.key === accessKey(session.accountId) && event.newValue !== null) {
         const latest = readAccountAccess(session.accountId);
-        if (latest && (latest.token !== session.token || latest.plan !== session.plan)) setSession(latest);
+        if (latest && (latest.token !== session.token || latest.plan !== session.plan || latest.offerPro !== session.offerPro)) setSession(latest);
         return;
       }
       if (event.key === null || (event.key === accessKey(session.accountId) && event.newValue === null)) {

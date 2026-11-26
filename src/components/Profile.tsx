@@ -2,6 +2,7 @@ import {useUi} from '../language';
 import {useState, type ReactNode, type FormEvent} from 'react';
 import {Check, FlaskConical, Plus, Sparkles} from 'lucide-react';
 import {createProfile, listProfiles, resumeProfile, type LocalProfile} from '../session';
+import {demoAccessEnabled} from '../access-client';
 import {Modal} from './Modal';
 import {AgentSelect} from './AgentSelect';
 
@@ -65,7 +66,7 @@ export function Profile({onClose, mode, setMode, profile, accountId, preferences
         <AgentSelect id="mode" fullWidth label={t('Режим ответов','Reply mode')} value={mode} onChange={setMode}
           options={[
             {value:'demo', label:t('Демо, включая офлайн','Demo with offline support'), icon:<FlaskConical size={17} aria-hidden="true"/>},
-            {value:'live', label:t('AI через сервер','AI via server'), icon:<Sparkles size={17} aria-hidden="true"/>},
+            ...(!demoAccessEnabled ? [{value:'live' as const, label:t('AI через сервер','AI via server'), icon:<Sparkles size={17} aria-hidden="true"/>}] : []),
           ]}/>
       </div>
       {preferences}

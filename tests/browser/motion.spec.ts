@@ -74,7 +74,7 @@ test('uses a shader skeleton until landing media is available', async ({page}) =
   await observeShaderDraws(page);
   let loadImage!: () => void;
   const wait = new Promise<void>(resolve => {loadImage = resolve;});
-  await page.route('**/illustrations/ideas.svg', async route => {
+  await page.route('**/favicon.svg', async route => {
     await wait;
     await route.continue();
   });
@@ -104,7 +104,7 @@ test('keeps the UI usable with WebGL disabled and a failed landing image', async
       },
     });
   });
-  await page.route('**/illustrations/ideas.svg', route => route.abort());
+  await page.route('**/favicon.svg', route => route.abort());
   await page.goto(workspace);
   await expect(page.getByRole('link', {name: 'Войти по коду'})).toBeVisible();
   await expect(page.locator('.reveal-media')).toHaveAttribute('data-status', 'fallback');

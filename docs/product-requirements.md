@@ -32,7 +32,7 @@ Agentik помогает выбрать помощника под конкрет
 
 ## Каналы и границы выпуска
 
-- Публичный GitHub Pages показывает лендинг и фирменные материалы. Рабочий демодоступ владельца ведёт в закрытое Sites-превью с проверкой доступа ChatGPT и входом Agentik. [Публичная страница](https://sergeybukharev.github.io/agentik/) · [Развёртывание](deployment.md)
+- GitHub Pages показывает лендинг, фирменные материалы и два демопрофиля с раздельными локальными историями. Владелец входит в рабочий аккаунт через серверную проверку. [Публичная страница](https://sergeybukharev.github.io/agentik/) · [Развёртывание](deployment.md)
 - Telegram Mini App поставляется отдельным ZIP с веб-сборкой, Node API и инструкцией для HTTPS-развёртывания. Официальная кнопка `t.me/share/url` передаёт ссылку с `startapp` и `mode=compact`. Запуск на рабочем боте и в реальных клиентах Telegram предстоит подтвердить. [Инструкция к комплекту](telegram-mini-app.md) · [Sharing Button](https://core.telegram.org/widgets/share) · [Telegram Mini Apps](https://core.telegram.org/bots/webapps#direct-link-mini-apps)
 - Снимок доступен по ссылке, пока она действительна. Доски, бюджет и комнаты хранятся в браузере. Сервер AI подключается отдельно. Для проверки совместной работы между устройствами нужна отдельная серверная реализация комнат с проверкой участников.
 - Free и PRO доступны как сценарии пилота. Для будущей продажи цифрового доступа внутри Telegram платформа требует Telegram Stars (`XTR`). [Telegram Stars](https://core.telegram.org/bots/payments-stars)

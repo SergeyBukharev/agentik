@@ -1,0 +1,91 @@
+.public-landing {
+  padding-block-start: var(--persistent-brand-top);
+}
+
+.public-landing__header {
+  min-block-size: var(--persistent-brand-height);
+}
+
+.public-landing__actions {
+  position: fixed;
+  z-index: 10;
+  inset-block-start: var(--persistent-brand-top);
+  inset-inline-end: var(--persistent-brand-inline);
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.public-landing__preferences {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.public-landing__theme {
+  inline-size: 44px;
+  block-size: 44px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.public-landing__preferences .language-choice button {
+  position: relative;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  color: var(--ink);
+}
+
+.public-landing__preferences .language-choice button[aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  inset: auto 35% 7px;
+  border-block-end: 2px solid currentColor;
+  border-radius: 1px;
+}
+
+@media (hover: hover) {
+  .public-landing__theme:hover,
+  .public-landing__preferences .language-choice button[aria-pressed='false']:hover {
+    background: var(--soft);
+  }
+}
+
+.public-landing :is(.agent-card__description, .agent-card__footer) {
+  color: var(--hero-copy);
+}
+
+.public-landing .avatar--peach {
+  color: oklch(0.53 0.077 59);
+}
+
+.public-landing__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding-block: 24px 12px;
+  margin-block-start: 26px;
+  border-block-start: 1px solid var(--line);
+  color: var(--hero-copy);
+}
+
+.public-landing__footer .text-link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+}
+
+@media (max-width: 460px) {
+  .public-landing__header {
+    min-block-size: calc(var(--persistent-brand-height) + 12px + 50px);
+  }
+
+  .public-landing__actions {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+  }
+}

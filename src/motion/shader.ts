@@ -2,6 +2,8 @@ export type ShaderEffect = 'welcome' | 'pulse' | 'skeleton' | 'reveal';
 export type Point = {x: number; y: number};
 
 const budgets = {welcome: 48_000, pulse: 86_000, skeleton: 48_000, reveal: 100_000} satisfies Record<ShaderEffect, number>;
+const sweepSlope = .30;
+const softeningPx = 44;
 let webglUnavailable = false;
 
 const vertex = `
@@ -17,6 +19,7 @@ precision mediump float;
 varying vec2 uv;
 uniform vec2 origin;
 uniform vec3 background, foreground, accent;
+uniform vec3 sweepWidths;
 uniform float time;
 uniform sampler2D glyphs;
 
@@ -29,7 +32,7 @@ void main() {
   vec3 lime = vec3(.79, .96, .42);
   vec3 mint = vec3(.54, .88, .77);
   float envelope = smoothstep(0., .14, time) * (1. - smoothstep(.67, 1., time));
-  float sweep = uv.x + (uv.y - .5) * .30 - mix(-.25, 1.25, time);
+  float sweep = uv.x + (uv.y - .5) * ${sweepSlope} - mix(-.25, 1.25, time);
 `;
 
 // Each canvas only compiles the effect it draws. No per-pixel effect branch.
@@ -57,15 +60,15 @@ const fragments: Record<ShaderEffect, string> = {
     gl_FragColor = vec4(tint, glow * feather * fade * .34);
   `,
   skeleton: `
-    float line = bell(sweep, .13) * .30 + bell(sweep + .18, .24) * .12;
-    gl_FragColor = vec4(mix(mint, vec3(.93, 1., .83), bell(sweep, .065)), line * envelope);
+    float line = bell(sweep, sweepWidths.x) * .13 + bell(sweep + .18, sweepWidths.y) * .05;
+    gl_FragColor = vec4(mix(mint, vec3(.93, 1., .83), bell(sweep, sweepWidths.z)), line * envelope);
   `,
   reveal: `
     float ripple = .02 * sin(uv.y * 36. + uv.x * 10.) + .013 * sin(uv.y * 81.);
     float edge = sweep + ripple;
-    float veil = smoothstep(-.11, .09, edge) * (1. - smoothstep(.8, 1., time)) * .91;
-    float shimmer = bell(edge, .065) * envelope;
-    gl_FragColor = vec4(mix(background, lime, shimmer * .7), max(veil, shimmer * .38));
+    float veil = smoothstep(-.11 - sweepWidths.x, .09 + sweepWidths.x, edge) * (1. - smoothstep(.8, 1., time)) * .30;
+    float shimmer = bell(edge, sweepWidths.y) * envelope;
+    gl_FragColor = vec4(mix(background, lime, shimmer * .7), max(veil, shimmer * .17));
   `,
 };
 
@@ -188,6 +191,17 @@ export function playShader(canvas: HTMLCanvasElement, options: {
   }
 
   gl.viewport(0, 0, canvas.width, canvas.height);
+  if (options.effect === 'skeleton' || options.effect === 'reveal') {
+    // Convert the CSS radius to sweep coordinates without a second rendering pass.
+    const width = canvas.clientWidth || rect.width;
+    const height = canvas.clientHeight || rect.height;
+    const radius = softeningPx * Math.hypot(1 / width, sweepSlope / height);
+    const broaden = (width: number) => Math.hypot(width, Math.SQRT2 * radius);
+    const widths = options.effect === 'skeleton'
+      ? [broaden(.13), broaden(.24), broaden(.065)]
+      : [radius, broaden(.065), 0];
+    gl.uniform3f(gl.getUniformLocation(program, 'sweepWidths'), widths[0], widths[1], widths[2]);
+  }
   if (options.effect === 'pulse' && options.origin) {
     gl.uniform2f(gl.getUniformLocation(program, 'origin'),
       (options.origin.x - rect.left) / rect.width, 1 - (options.origin.y - rect.top) / rect.height);

@@ -85,27 +85,6 @@
 .persistent-brand__lock[data-lock='open'] { color: #d1f28b; }
 .persistent-brand__lock[data-lock='open'] .persistent-brand__shackle { transform: translateY(-1px) rotate(39deg); }
 
-.public-landing__header {
-  min-block-size: var(--persistent-brand-height);
-}
-.public-landing__sign-in {
-  position: fixed;
-  z-index: 10;
-  inset-block-start: var(--persistent-brand-top);
-  inset-inline-end: var(--persistent-brand-inline);
-}
-.public-landing {
-  padding-block-start: var(--persistent-brand-top);
-}
-.public-landing__footer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 24px;
-  padding-block: 24px 12px;
-  margin-block-start: 26px;
-  border-block-start: 1px solid var(--line);
-  color: var(--muted);
-}
 .sidebar {
   --sidebar-padding: 18px;
   padding: var(--sidebar-padding);

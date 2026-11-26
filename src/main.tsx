@@ -2,6 +2,7 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import './fonts.css';
 import './styles.css';
+import './scrollbars.css';
 import './access-motion.css';
 import './composer.css';
 import './persistent-brand.css';

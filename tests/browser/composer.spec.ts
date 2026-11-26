@@ -112,11 +112,20 @@ test('opens the profile, assistant form and PRO from their direct links',async({
   }
 });
 
-test('expands the same draft from the top-right of the composer on desktop and mobile', async ({page}) => {
+test('keeps the expand button clear of a scrolling draft on desktop and mobile', async ({page}) => {
   await page.goto(workspace+'#/assistant/writer');
   await enterCode(page);
   const field = messageField(page);
-  await field.fill('Черновик останется на месте');
+  const draft = Array.from({length: 30}, (_, index) => `Строка ${index + 1}`).join('\n');
+  await field.fill(draft);
+
+  async function expectDraftScrolls() {
+    await field.evaluate(el => { el.scrollTop = 0; });
+    await field.hover();
+    await page.mouse.wheel(0, 120);
+    await expect.poll(() => field.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+  }
+
   for (const width of [1120, 320]) {
     await page.setViewportSize({width, height:690});
     const expand = page.getByRole('button', {name:'Увеличить поле сообщения'});
@@ -125,15 +134,19 @@ test('expands the same draft from the top-right of the composer on desktop and m
     await expect(expand).toHaveAttribute('aria-expanded', 'false');
     const fieldBounds = (await field.boundingBox())!;
     const expandBounds = (await expand.boundingBox())!;
-    expect(expandBounds.y).toBe(fieldBounds.y);
-    expect(expandBounds.x+expandBounds.width).toBeCloseTo(fieldBounds.x+fieldBounds.width, 0);
+    expect(Math.abs(expandBounds.y - fieldBounds.y)).toBeLessThanOrEqual(1);
+    expect(expandBounds.x).toBeGreaterThanOrEqual(fieldBounds.x + fieldBounds.width);
     await expect(field).toHaveCSS('resize', 'none');
+    await expectDraftScrolls();
     await expand.press('Enter');
 
     const collapse = page.getByRole('button', {name:'Уменьшить поле сообщения'});
     await expect(collapse).toHaveAttribute('aria-expanded', 'true');
-    expect((await field.boundingBox())!.height).toBeGreaterThan(fieldBounds.height);
-    await expect(field).toHaveValue('Черновик останется на месте');
+    const expandedField = (await field.boundingBox())!;
+    expect(expandedField.height).toBeGreaterThan(fieldBounds.height);
+    expect((await collapse.boundingBox())!.x).toBeGreaterThanOrEqual(expandedField.x + expandedField.width);
+    await expect(field).toHaveValue(draft);
+    await expectDraftScrolls();
     await expectNoHorizontalScroll(page);
     await collapse.click();
     await expect(expand).toHaveAttribute('aria-expanded', 'false');

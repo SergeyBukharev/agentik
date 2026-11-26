@@ -19,12 +19,14 @@
 
 | Метод и путь | Запрос и ответ |
 | --- | --- |
-| `POST /api/access/login` | JSON `{ "email": "owner@example.test", "code": "TEST42" }`. Возвращает `{accountId,token,expiresAt,plan?}`. Коды из старого списка без привязки принимаются в формате `{code}`. Сервер хранит пару в `AGENTIK_ACCOUNT_EMAIL` и `AGENTIK_ACCOUNT_CODE`, выделяет PRO через `AGENTIK_PRO_CODES`. |
-| `GET /api/access/session` | `Authorization: Bearer <token>`. Возвращает `{accountId,expiresAt,plan?}` либо `401`. Срок сессии 90 дней, `expiresAt` в миллисекундах Unix. |
+| `POST /api/access/login` | JSON `{ "email": "owner@example.test", "code": "TEST42" }`. Возвращает `{accountId,token,expiresAt,plan?,offerPro?}`. Коды из старого списка без привязки принимаются в формате `{code}`. Сервер хранит пару в `AGENTIK_ACCOUNT_EMAIL` и `AGENTIK_ACCOUNT_CODE`, выделяет PRO через `AGENTIK_PRO_CODES`. |
+| `GET /api/access/session` | `Authorization: Bearer <token>`. Возвращает `{accountId,expiresAt,plan?,offerPro?}` либо `401`. Срок сессии 90 дней, `expiresAt` в миллисекундах Unix. |
 | `POST /api/chat` | Bearer и JSON `{assistant:{name,instruction}, messages:[{role,content}], model?, language?}`. Модели `auto`, `chatgpt`, `deepseek`, `alice`, языки `ru` и `en`. Ответ `{reply}`. До 20 сообщений, до 6000 символов в сообщении, последнее от пользователя, тело до 65 536 байт. |
 | `POST /api/chat?media=1` | Та же схема и одно поле `images:[{id,name,url}]` в последнем сообщении. `url` содержит компактный raster data URL. До 320 000 символов URL и 400 000 байт на запрос. Сервер передаёт изображение только модели с поддержкой зрения. Изображение передаётся вместе с текущим сообщением; в дальнейших запросах сохраняется текстовый контекст. |
 
 JSON-ошибка имеет поле `error`. Формат `400`, отказ доступа `401/403`, размер `413`, несовместимая модель для изображения `422`, лимит `429`, недоступная модель `503`, сбой поставщика `502`. Для входа `429` содержит `Retry-After`. Ответы API имеют `Cache-Control: no-store`. CORS использует точный `ALLOWED_ORIGIN`.
+
+`offerPro: true` выдаётся только настроенному аккаунту владельца с тарифом Free. Это признак для кнопки в интерфейсе. Демо на GitHub Pages использует локальные профили с токеном `demo.v1.*`. Сервер принимает свои подписанные токены `v1.*`.
 
 Модели настраиваются `AI_API_KEY`, `AI_MODEL`, `AI_API_BASE` для авто, `AI_OPENAI_API_KEY` и `AI_OPENAI_MODEL` для ChatGPT, `AI_DEEPSEEK_API_KEY` и `AI_DEEPSEEK_MODEL` для DeepSeek. `AI_VISION=true` явно включает изображения для модели авто. Диктовка производит текст в браузере, отдельный аудиоэндпоинт для этого сценария не нужен.
 

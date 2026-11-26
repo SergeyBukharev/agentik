@@ -1,6 +1,6 @@
 # Материалы Agentik
 
-Лендинг и наборы компонентов доступны на GitHub Pages. В опубликованное закрытое превью сначала входит владелец через ChatGPT, затем используется код Agentik. [Лендинг](https://sergeybukharev.github.io/agentik/) · [Закрытое превью](https://agentik-preview.beulahbailey1907.chatgpt.site/agentik/#/login)
+Лендинг, браузерные демопрофили и киты доступны на GitHub Pages. [Лендинг](https://sergeybukharev.github.io/agentik/) · [Вход в Free и PRO](https://sergeybukharev.github.io/agentik/#/login) · [Все файлы репозитория](file-list.txt)
 
 ## Экраны и сценарии
 
@@ -45,4 +45,4 @@
 | `server/telegram-mini-app.ts`, `server/telegram-shares.ts` | Сервер сборки и ссылки на копии чатов |
 | `scripts/package-telegram-mini-app.mjs`, `scripts/artifacts/` | Сборка архива и исходники бизнес-материалов |
 
-Исходники находятся в [приватном репозитории](https://github.com/SergeyBukharev/agentik). Локальные имена и коды доступа хранятся в окружении сервера.
+Исходники находятся в публичном репозитории. Рабочие аккаунты настраиваются на сервере. [Agentik на GitHub](https://github.com/SergeyBukharev/agentik)

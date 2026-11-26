@@ -1,5 +1,25 @@
 import {expect, it} from 'vitest';
 import {createAccess} from './access';
+
+it('includes the footer upgrade offer only for the paired owner on Free', async () => {
+  const config = {accountEmail:'owner@example.test', accountCode:'654ABC', accountEmailAliases:'alias@example.test', codesText:'X44AQ3', secret:'fixture-secret-used-for-auth-tests-only'};
+  const logIn = async (access: ReturnType<typeof createAccess>, code: string, email?: string) => {
+    const response = await access.respond(new Request('http://localhost/api/access/login', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code, email}),
+    }), '/api/access/login', 'test-client', {});
+    expect(response.ok).toBe(true);
+    return response.json();
+  };
+  const free = createAccess(config);
+  const owner = await logIn(free, config.accountCode, 'alias@example.test');
+  expect(owner.offerPro).toBe(true);
+  expect(free.verify(owner.token)?.offerPro).toBe(true);
+  expect((await logIn(free, 'X44AQ3')).offerPro).toBeUndefined();
+  const upgraded = createAccess({...config, proCodes:config.accountCode});
+  expect(upgraded.verify(owner.token)).toMatchObject({plan:'pro'});
+  expect(upgraded.verify(owner.token)?.offerPro).toBeUndefined();
+});
+
 it('requires the configured email for the paired code even when it is also in the legacy list', async () => {
   const access = createAccess({codesText:'[654ABC][legacy]', accountEmail:'owner@example.test', accountCode:'654ABC', secret:'fixture-secret-used-for-auth-tests-only'});
   const login = (body: object) => access.respond(new Request('http://localhost/api/access/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}), '/api/access/login','test-client',{});

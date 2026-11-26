@@ -1,5 +1,14 @@
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {flushSync} from 'react-dom';
+
+const themeKey = 'agentik:theme';
+
+function readTheme() {
+  try {
+    const theme = localStorage.getItem(themeKey);
+    if (theme === 'light' || theme === 'dark') return theme === 'dark';
+  } catch { /* System preference is available without storage. */ }
+}
 
 function applyDocumentTheme(dark: boolean) {
   const theme = dark ? 'dark' : 'light';
@@ -7,12 +16,25 @@ function applyDocumentTheme(dark: boolean) {
 }
 
 export function useTheme(initial: boolean | (() => boolean)) {
-  const [dark, setDark] = useState(initial);
+  const [dark, setDark] = useState(() => readTheme() ?? (typeof initial === 'function' ? initial() : initial));
   const desired = useRef(dark);
+  const manual = useRef(false);
   const running = useRef<ViewTransition | null>(null);
   const request = useRef(0);
 
-  useEffect(() => {applyDocumentTheme(dark);}, [dark]);
+  useLayoutEffect(() => {applyDocumentTheme(dark);}, [dark]);
+  useEffect(() => {
+    if (typeof initial !== 'function') return;
+    const system = window.matchMedia?.('(prefers-color-scheme: dark)');
+    const synchronize = () => {
+      if (manual.current || readTheme() !== undefined) return;
+      const next = initial();
+      desired.current = next;
+      setDark(next);
+    };
+    system?.addEventListener?.('change', synchronize);
+    return () => system?.removeEventListener?.('change', synchronize);
+  }, [initial]);
   useEffect(() => () => {
     request.current++;
     running.current?.skipTransition();
@@ -22,8 +44,13 @@ export function useTheme(initial: boolean | (() => boolean)) {
   function toggleTheme() {
     const next = !desired.current;
     desired.current = next;
+    manual.current = true;
     const id = ++request.current;
-    const apply = () => {applyDocumentTheme(next); setDark(next);};
+    const apply = () => {
+      applyDocumentTheme(next);
+      setDark(next);
+      try { localStorage.setItem(themeKey, next ? 'dark' : 'light'); } catch { /* In-memory choice stays active. */ }
+    };
 
     if (running.current || document.hidden || typeof document.startViewTransition !== 'function'
       || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {

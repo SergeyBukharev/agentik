@@ -12,7 +12,7 @@ const stage = await mkdtemp(resolve(work, 'telegram-archive-'));
 
 try {
   // The archive uses one origin for the app and API. Public-site settings belong to its separate build.
-  for (const key of ['VITE_ACCESS_PREVIEW_URL','VITE_API_URL','VITE_PRO_CHECKOUT_URL','VITE_SUPABASE_URL','VITE_SUPABASE_ANON_KEY','VITE_SERVICE_ANNOUNCEMENTS']) {
+  for (const key of ['VITE_ACCESS_PREVIEW_URL','VITE_API_URL','VITE_DEMO_ACCESS','VITE_PRO_CHECKOUT_URL','VITE_SUPABASE_URL','VITE_SUPABASE_ANON_KEY','VITE_SERVICE_ANNOUNCEMENTS']) {
     process.env[key] = '';
   }
   process.env.VITE_TELEGRAM_MINI_APP = 'true';
@@ -27,7 +27,7 @@ try {
   }
   await cp(resolve(root, 'docs/telegram-mini-app.md'), resolve(stage, 'README-TELEGRAM.md'));
   for (const file of await readdir(resolve(root, 'docs'), {withFileTypes: true})) {
-    if (file.isFile() && /\.(?:md|pdf|pptx|xlsx)$/i.test(file.name)) {
+    if (file.isFile() && (/\.(?:md|pdf|pptx|xlsx)$/i.test(file.name) || file.name === 'file-list.txt')) {
       await cp(resolve(root, 'docs', file.name), resolve(stage, 'docs', file.name));
     }
   }

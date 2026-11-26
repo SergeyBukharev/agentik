@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState, type FormEvent} from 'react';
 import {WifiOff} from 'lucide-react';
 import {animate} from 'motion/mini';
-import {AccessError, logIn} from '../access-client';
+import {AccessError, demoAccessEnabled, logIn, publicDemoAccounts} from '../access-client';
 import {normalizeAccessCode, type AccessSession} from '../access-contract';
 import {useOnline} from '../useAccess';
 import {useUi} from '../language';
@@ -17,6 +17,7 @@ export default function CodeGate({notice, onUnlock, onAccept}: {notice: string; 
   const [phase, setPhase] = useState<'idle' | 'checking' | 'accepted' | 'rejected'>('idle');
   const [error, setError] = useState('');
   const online = useOnline();
+  const canCheck = online || demoAccessEnabled;
   const group = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -63,15 +64,16 @@ export default function CodeGate({notice, onUnlock, onAccept}: {notice: string; 
     if (complete && normalizeAccessCode(value)) void check(value);
   }
 
-  async function check(value: string) {
-    if (operation.current || busy || !online) return;
+  async function check(value: string, address = email) {
+    if (operation.current || busy || !canCheck) return;
     const normalized = normalizeAccessCode(value);
     if (!normalized) {
       setError(t('Введите шесть латинских букв или цифр.','Enter six Latin letters or digits.'));
       input.current?.focus();
       return;
     }
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    const trimmedEmail = address.trim();
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setError(t('Укажите корректный email.','Enter a valid email address.'));
       emailField.current?.focus();
       return;
@@ -82,7 +84,7 @@ export default function CodeGate({notice, onUnlock, onAccept}: {notice: string; 
     setError('');
     setPhase('checking');
     try {
-      const session = await logIn(normalized, controller.signal, email.trim());
+      const session = await logIn(normalized, controller.signal, trimmedEmail);
       if (controller.signal.aborted) return;
       setCode('');
       setPhase('accepted');
@@ -112,7 +114,15 @@ export default function CodeGate({notice, onUnlock, onAccept}: {notice: string; 
     <main className="code-gate">
       <section className="code-gate__panel" ref={panel} tabIndex={-1} aria-labelledby="access-title">
         <h1 id="access-title" className="code-gate__title">{t('Вход в Agentik','Sign in to Agentik')}</h1>
-        <p className="code-gate__description">{t('Введите код доступа и email, если он указан для вашего кода.','Enter your access code and its associated email if you have one.')}</p>
+        <p className="code-gate__description">{demoAccessEnabled
+          ? t('Выберите тестовый аккаунт или введите его email и код.','Choose a demo account or enter its email and code.')
+          : t('Введите код доступа и email, если он указан для вашего кода.','Enter your access code and its associated email if you have one.')}</p>
+        {demoAccessEnabled && <div className="code-gate__demo" role="group" aria-label={t('Тестовые аккаунты','Demo accounts')}>
+          {publicDemoAccounts.map(account => <button type="button" key={account.accountId} className="button button--secondary" disabled={busy}
+            onClick={() => {setEmail(account.email); void check(account.code, account.email);}}>
+            {account.plan === 'pro' ? t('Демо PRO','PRO demo') : t('Демо Free','Free demo')}
+          </button>)}
+        </div>}
         <form className="code-gate__form" onSubmit={submit} noValidate>
           <label htmlFor="access-email" className="form__label">Email</label>
           <input id="access-email" ref={emailField} className="code-gate__email" type="email" autoComplete="email" maxLength={254}
@@ -138,7 +148,7 @@ export default function CodeGate({notice, onUnlock, onAccept}: {notice: string; 
               maxLength={32}
               readOnly={busy}
               value={code}
-              aria-invalid={!!error && online && phase !== 'checking'}
+              aria-invalid={!!error && canCheck && phase !== 'checking'}
               aria-describedby="access-help"
               onChange={event => receiveCode(event.currentTarget, !(event.nativeEvent as InputEvent).isComposing)}
               onCompositionEnd={event => receiveCode(event.currentTarget, true)}
@@ -146,13 +156,13 @@ export default function CodeGate({notice, onUnlock, onAccept}: {notice: string; 
             />
           </div>
           <div id="access-help" className="code-gate__help">
-            {!online ? <p role="status"><WifiOff size={16}/> {t('Для проверки кода нужен интернет.','Connect to the internet to verify your code.')}</p>
+            {!canCheck ? <p role="status"><WifiOff size={16}/> {t('Для проверки кода нужен интернет.','Connect to the internet to verify your code.')}</p>
               : error ? <p className="code-gate__error" role="alert">{error}</p>
               : phase === 'accepted' ? <p role="status">{t('Вход выполнен.','Signed in successfully.')}</p>
               : phase === 'checking' ? <p role="status">{t('Проверяем код…','Verifying your code…')}</p>
               : <p>{notice || t('6 латинских букв или цифр. Код можно вставить целиком.','6 Latin letters or digits. You can paste the full code.')}</p>}
           </div>
-          <button type="submit" className="button code-gate__submit" disabled={busy || !online}>
+          <button type="submit" className="button code-gate__submit" disabled={busy || !canCheck}>
             {phase === 'checking' ? t('Проверяем…','Verifying…') : phase === 'accepted' ? t('Открываем…','Opening…') : t('Войти','Sign in')}
           </button>
         </form>

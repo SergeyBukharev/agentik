@@ -1,32 +1,62 @@
 import {expect, test} from '@playwright/test';
-import {openCatalog, workspace} from './helpers';
+import {enterCode, openCatalog, workspace} from './helpers';
 
 test.use({serviceWorkers: 'block'});
 
-test('uses a finite ASCII pulse without the green spotlight on the public and workspace heroes', async ({page}) => {
+test('shows logo pixels only on hover or keyboard focus in the public and workspace heroes', async ({page}) => {
   await page.goto(workspace);
   const hero = page.locator('.hero--intro');
-  const signal = hero.locator('.hero-stream__signal');
   await expect(hero).toBeVisible();
-  await expect(hero.locator('.hero-aura')).toHaveCount(0);
-  await expect(hero.locator('.hero-stream svg text')).not.toHaveCount(0);
-  await expect(signal).toHaveCSS('animation-name', 'none');
+  await expect(hero.locator('.hero-stream, .hero-aura')).toHaveCount(0, {timeout: 2000});
+  await expect(hero.locator('img')).toHaveAttribute('src', '/agentik/favicon.svg');
+  const pixels = hero.locator('.hero-mark__cluster--top-right');
+  await expect(pixels).toHaveCSS('opacity', '0');
+  const restingPosition = await pixels.evaluate(node => getComputedStyle(node).transform);
   await hero.hover({position: {x: 82, y: 100}});
-  await expect(signal).toHaveCSS('animation-name', 'hero-stream-pulse');
-  await expect(signal).toHaveCSS('animation-iteration-count', '1');
+  await expect(pixels).toHaveCSS('opacity', '1');
+  await expect(pixels).not.toHaveCSS('transform', restingPosition);
   await page.emulateMedia({reducedMotion: 'reduce'});
-  await expect(signal).toHaveCSS('animation-name', 'none');
+  await expect(pixels).toHaveCSS('transform', 'none');
+  await page.mouse.move(1, 1);
+  await expect(pixels).toHaveCSS('opacity', '0');
+  await page.keyboard.press('Tab');
+  await hero.getByRole('link', {name:'Войти по коду'}).focus();
+  await expect(pixels).toHaveCSS('opacity', '1');
+
   await openCatalog(page);
   await page.goto(workspace + '#/');
-  await expect(hero.locator('.hero-stream')).toHaveCount(1);
-  await expect(hero.locator('.hero-aura')).toHaveCount(0);
+  await expect(hero.getByRole('link', {name:'Выбрать помощника'})).toBeVisible();
+  await expect(hero.locator('.hero-stream, .hero-aura')).toHaveCount(0);
+  await expect(pixels).toHaveCSS('opacity', '0');
+  await hero.hover({position: {x: 82, y: 100}});
+  await expect(pixels).toHaveCSS('opacity', '1');
+});
+
+test('expands a ripple from the click point and leaves the sign-in link alone', async ({page}) => {
+  await page.goto(workspace);
+  const hero = page.locator('.hero--intro');
+  const wave = hero.locator('.hero__ripple-wave');
+  await hero.click({position: {x: 36, y: 72}});
+  await expect(wave).toHaveCount(1, {timeout: 2000});
+  await expect(wave).toHaveCSS('left', '36px');
+  await expect(wave).toHaveCSS('top', '72px');
+  await expect(wave).toHaveCount(0);
+
+  const signIn = hero.getByRole('link', {name:'Войти по коду'});
+  await signIn.evaluate(link => link.addEventListener('click', event => event.preventDefault(), {once:true}));
+  await signIn.click();
+  await expect(wave).toHaveCount(0);
+
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await hero.click({position: {x:36, y:72}});
+  await expect(wave).toHaveCount(0);
 });
 
 test('uses separate skeleton surfaces and a static silhouette for the illustration effects', async ({page}) => {
   await page.emulateMedia({reducedMotion: 'reduce'});
   let release!: () => void;
   const ready = new Promise<void>(resolve => {release = resolve;});
-  for (const path of ['**/illustrations/ideas.svg', '**/assets/LandingShowcase-*.js']) {
+  for (const path of ['**/favicon.svg', '**/assets/LandingShowcase-*.js']) {
     await page.route(path, async route => {
       await ready;
       await route.continue();
@@ -84,8 +114,11 @@ test('keeps filter icons still and moves assistant avatars on hover and keyboard
   await expect(productAvatar).toHaveCSS('transform', 'none');
 });
 
-test('keeps 18px sidebar padding and the lime PRO button in both themes', async ({page}) => {
-  await openCatalog(page);
+test('keeps 18px sidebar padding and the lime PRO button for the Free owner', async ({page}) => {
+  await page.goto(workspace + '#/login');
+  await page.getByLabel('Email').fill('owner@example.test');
+  await enterCode(page, '123QWE');
+  await expect(page.getByRole('heading', {name:'Ваши разговоры'})).toBeVisible();
   const sidebar = page.locator('.sidebar');
   const button = sidebar.locator('.button--pro');
   for (const width of [1280, 1024, 800]) {

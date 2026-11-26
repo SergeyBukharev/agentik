@@ -87,7 +87,10 @@ export function createAccess(config: AccessConfig) {
     if (id !== pairedId) bind(id, email);
   }
   const proAccounts = new Set((config.proCodes ?? '').split(',').map(normalizeAccessCode).filter((item):item is string => !!item).map(accountId));
-  const planFor = (id:string) => proAccounts.has(id) ? {plan:'pro' as const} : {};
+  const entitlements = (id: string): Pick<AccessSession, 'plan' | 'offerPro'> => {
+    if (proAccounts.has(id)) return {plan:'pro'};
+    return id === pairedId ? {offerPro:true} : {};
+  };
   const ready = accounts.size > 0;
   const failures = new Map<string, {until: number; count: number}>();
   let globalFailures = {until: 0, count: 0};
@@ -101,7 +104,7 @@ export function createAccess(config: AccessConfig) {
     try {
       const decoded = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
       if (decoded.binding !== bindings.get(decoded.accountId)?.stamp) return null;
-      const session = {accountId: decoded.accountId, expiresAt: decoded.expiresAt, token, ...planFor(decoded.accountId)};
+      const session = {accountId: decoded.accountId, expiresAt: decoded.expiresAt, token, ...entitlements(decoded.accountId)};
       return isAccessSession(session, now()) && accounts.has(session.accountId) ? session : null;
     } catch {
       return null;
@@ -111,7 +114,7 @@ export function createAccess(config: AccessConfig) {
   function issue(id: string): AccessSession {
     const expiresAt = now() + ACCESS_DURATION_MS;
     const payload = 'v1.' + Buffer.from(JSON.stringify({accountId: id, expiresAt, binding:bindings.get(id)?.stamp})).toString('base64url');
-    return {accountId: id, expiresAt, ...planFor(id), token: payload + '.' + signature(payload).toString('base64url')};
+    return {accountId: id, expiresAt, ...entitlements(id), token: payload + '.' + signature(payload).toString('base64url')};
   }
 
   async function respond(request: Request, path: string, client: string, headers: Record<string, string>) {
@@ -122,7 +125,7 @@ export function createAccess(config: AccessConfig) {
       if (request.method !== 'GET') return out(405, {error: 'Используйте GET.'});
       const verified = verify(request.headers.get('Authorization')?.match(/^Bearer (\S+)$/)?.[1]);
       return verified
-        ? out(200, {accountId: verified.accountId, expiresAt: verified.expiresAt, ...planFor(verified.accountId)})
+        ? out(200, {accountId: verified.accountId, expiresAt: verified.expiresAt, ...entitlements(verified.accountId)})
         : out(401, {error: 'Срок входа истёк. Введите код ещё раз.'});
     }
 

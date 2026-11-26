@@ -5,6 +5,7 @@ import {useTheme} from './useTheme';
 afterEach(() => {
   Reflect.deleteProperty(document, 'startViewTransition');
   delete document.documentElement.dataset.theme;
+  localStorage.removeItem('agentik:theme');
   vi.unstubAllGlobals();
 });
 

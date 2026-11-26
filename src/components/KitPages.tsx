@@ -4,7 +4,6 @@ import palette from '../../design-system/colors.json';
 import paletteDownload from '../../design-system/colors.json?url';
 import {kitPages, kitPaths, type KitPage} from '../kits';
 import {useUi} from '../language';
-import {useTheme} from '../useTheme';
 import {BrandLogo} from './BrandLogo';
 import {UiKitShowcase} from './UiKitShowcase';
 import './kit-pages.css';
@@ -16,9 +15,8 @@ const logoLight = base + 'brand/agentik-wordmark-light.svg';
 const logoDark = base + 'brand/agentik-wordmark-dark.svg';
 const paletteNames = ['brand-lime', 'brand-ink', 'ink', 'muted', 'canvas', 'surface', 'soft', 'line', 'lime-soft', 'focus', 'danger'] as const;
 
-export default function KitPages({page}: {page: KitPage}) {
+export default function KitPages({page, dark, toggleTheme}: {page: KitPage; dark: boolean; toggleTheme: () => void}) {
   const {t} = useUi();
-  const {dark, toggleTheme} = useTheme(() => document.documentElement.dataset.theme === 'dark');
   const heading = useRef<HTMLHeadingElement>(null);
   const headingText = t(...kitPages[page]);
 

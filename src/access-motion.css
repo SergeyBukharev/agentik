@@ -9,28 +9,6 @@
   margin-block-end: 20px;
 }
 
-.hero.hero--intro {
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: center;
-  gap: 10px;
-  padding: clamp(28px, 5vw, 58px) clamp(18px, 5vw, 48px) 16px;
-  text-align: center;
-}
-
-.hero--intro .hero__content {
-  padding: 0;
-}
-
-.hero--intro .hero__illustration {
-  width: min(100%, 340px);
-  min-inline-size: 0;
-  padding: 0;
-}
-
-.hero--intro .hero__description {
-  margin-inline: auto;
-}
-
 .reveal-media {
   position: relative;
   width: min(100%, 440px);
@@ -106,6 +84,20 @@
 .code-gate__panel:focus,
 .page-state:focus {
   outline: none;
+}
+
+.code-gate__demo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-block-end: 18px;
+}
+
+.code-gate__demo .button {
+  min-height: 44px;
+  color: #f0f3ee;
+  background: #2a3229;
+  border-color: #4b5948;
 }
 
 .code-gate__title {
@@ -343,12 +335,28 @@
 .screen-skeleton__row { width: 75%; height: 16px; }
 .screen-skeleton__card { height: 65px; }
 
+:is(.media-skeleton, .screen-skeleton--layered [data-skeleton-level])::before,
+:is(.screen-skeleton, .reveal-media, .chat__loading--skeleton)::after {
+  --skeleton-glow-spread: 44px;
+  --skeleton-glow: linear-gradient(var(--skeleton-glow-angle),
+    transparent calc(var(--skeleton-glow-start) - var(--skeleton-glow-spread)),
+    color-mix(in srgb, var(--skeleton-shine) 22%, transparent) var(--skeleton-glow-start),
+    var(--skeleton-shine) var(--skeleton-glow-peak),
+    color-mix(in srgb, var(--skeleton-shine) 22%, transparent) var(--skeleton-glow-end),
+    transparent calc(var(--skeleton-glow-end) + var(--skeleton-glow-spread)));
+}
+
 .screen-skeleton:not(:has(canvas[data-running]))::after,
 .reveal-media[data-status='loading']:not(:has(canvas[data-running]))::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(112deg, transparent 28%, var(--lime-soft) 48%, transparent 65%);
+  --skeleton-shine: var(--lime-soft);
+  --skeleton-glow-angle: 112deg;
+  --skeleton-glow-start: 28%;
+  --skeleton-glow-peak: 48%;
+  --skeleton-glow-end: 65%;
+  background: var(--skeleton-glow);
   pointer-events: none;
   animation: sweep 1.3s ease-out both;
 }
@@ -442,7 +450,8 @@
 .chat__header .button { flex-shrink: 1; }
 
 @keyframes sweep {
-  from { transform: translateX(-100%); opacity: .8; }
+  from { transform: translateX(-100%); opacity: 0; }
+  35% { opacity: .28; }
   to { transform: translateX(100%); opacity: 0; }
 }
 @keyframes title-glint {

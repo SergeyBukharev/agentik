@@ -44,23 +44,18 @@ const KitPages = lazy(() => import('./components/KitPages'));
 const ChatBoard = lazy(() => import('./components/ChatBoard').then(module => ({default:module.ChatBoard})));
 const BoardIndex = lazy(() => import('./components/ChatBoard').then(module => ({default:module.BoardIndex})));
 
+function initialTheme() {
+  const telegram = import.meta.env.VITE_TELEGRAM_MINI_APP === 'true' ? getTelegramWebApp() : undefined;
+  return telegram ? telegram.colorScheme === 'dark' : window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+}
+
 export default function App({requestReply = replyTo}: {requestReply?: typeof replyTo}) {
   const route = useRoute();
+  const theme = useTheme(initialTheme);
   const {session, persisted, notice, accept, signOut} = useAccess();
   const [unlocked, setUnlocked] = useState(false);
   const gated = !session && (route.kind === 'login' || route.kind === 'workspace');
 
-  useEffect(() => {
-    if (session) return;
-    const preference = window.matchMedia?.('(prefers-color-scheme: dark)');
-    const apply = () => {
-      const telegram = import.meta.env.VITE_TELEGRAM_MINI_APP === 'true' ? getTelegramWebApp() : undefined;
-      document.documentElement.dataset.theme = telegram?.colorScheme ?? (preference?.matches ? 'dark' : 'light');
-    };
-    apply();
-    preference?.addEventListener('change', apply);
-    return () => preference?.removeEventListener('change', apply);
-  }, [session]);
   useEffect(() => {setUnlocked(false);}, [route.path, session?.accountId]);
   useEffect(() => {
     if (session && route.kind === 'login') location.replace('#/history');
@@ -74,10 +69,10 @@ export default function App({requestReply = replyTo}: {requestReply?: typeof rep
       <Agreement key={session?.accountId ?? 'guest'} accountId={session?.accountId}/>
     </Suspense>;
   } else if (route.kind === 'kit' && route.kit) {
-    screen = <Suspense fallback={<main className="state-page"><ScreenSkeleton/></main>}><KitPages page={route.kit}/></Suspense>;
+    screen = <Suspense fallback={<main className="state-page"><ScreenSkeleton/></main>}><KitPages page={route.kit} {...theme}/></Suspense>;
   } else if (!session) {
     const previewHref = accessPreviewHref(route.path);
-    screen = route.kind === 'home' ? <PublicLanding/> : previewHref ? <PreviewAccess href={previewHref}/> : (
+    screen = route.kind === 'home' ? <PublicLanding {...theme}/> : previewHref ? <PreviewAccess href={previewHref}/> : (
       <Suspense fallback={<main className="state-page"><ScreenSkeleton compact/></main>}>
         <CodeGate onUnlock={()=>setUnlocked(true)} notice={notice} onAccept={value => {
           if (route.kind === 'login') location.replace('#/history');
@@ -87,7 +82,7 @@ export default function App({requestReply = replyTo}: {requestReply?: typeof rep
     );
   } else {
     const workspaceRoute = route.kind === 'login' ? {...route, page: 'history', kind: 'workspace' as const} : route;
-    screen = <AuthorizedWorkspace key={session.accountId} session={session} route={workspaceRoute} persisted={persisted}
+    screen = <AuthorizedWorkspace key={session.accountId} session={session} route={workspaceRoute} persisted={persisted} {...theme}
       requestReply={requestReply} onSignOut={() => { signOut(); location.replace('#/login'); }}/>;
   }
 
@@ -117,6 +112,8 @@ type WorkspaceContext = {
   session: AccessSession;
   persisted: boolean;
   onSignOut: () => void;
+  dark: boolean;
+  toggleTheme: () => void;
 };
 
 function AuthorizedWorkspace(context: WorkspaceContext) {
@@ -128,7 +125,7 @@ function AuthorizedWorkspace(context: WorkspaceContext) {
   }}/>;
 }
 
-function Workspace({requestReply, profile, onSwitch, route, session, persisted, onSignOut}: WorkspaceContext & {
+function Workspace({requestReply, profile, onSwitch, route, session, persisted, onSignOut, dark, toggleTheme}: WorkspaceContext & {
   profile: LocalProfile;
   onSwitch: (profile: LocalProfile) => void;
 }) {
@@ -145,7 +142,6 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
   const [mode, setMode] = useState<'demo' | 'live'>('demo');
   const [model, setModel] = useState<ChatModel>('auto');
   const [validation,setValidation]=useState('');
-  const {dark, toggleTheme} = useTheme(() => import.meta.env.VITE_TELEGRAM_MINI_APP === 'true' && getTelegramWebApp()?.colorScheme === 'dark');
   const [drafts] = useState(createChatDrafts);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<Record<string, boolean>>({});
@@ -332,7 +328,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
      <span aria-hidden="true">{wallet.remaining}</span>
    </button>}
  </div>;
- const proButton=<ProButton label={session.plan==='pro'?'Agentik PRO':t('Купить PRO','Get PRO')} onClick={()=>setModal('pro')}/>;
+ const proButton=session.offerPro && session.plan !== 'pro' ? <ProButton label={t('Купить PRO','Get PRO')} onClick={()=>setModal('pro')}/> : null;
  const categoryLabels:Record<string,string>={'Все':'All','Работа':'Work','Жизнь':'Life','Творчество':'Creative','Обучение':'Learning','Дом':'Home','Дизайн':'Design','Продукт':'Product','Мои помощники':'My assistants'};
  const categoryLabel=(value:string)=>language==='en' ? categoryLabels[value] ?? value : value;
  const notices = useMemo(() => home ? readServiceNotices(import.meta.env.VITE_SERVICE_ANNOUNCEMENTS) : [], [home]);
