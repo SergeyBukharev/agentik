@@ -33,9 +33,18 @@
 :root[data-theme='dark'] .persistent-brand { border-color: transparent; }
 .persistent-brand__access {
   min-inline-size: var(--persistent-brand-height);
+  block-size: var(--persistent-brand-height);
   justify-content: center;
   background: color-mix(in oklch, #232a21 86%, var(--brand-lime, #d4f58a));
   border-color: color-mix(in oklch, #232a21 63%, var(--brand-lime, #d4f58a));
+  color: #bad0ae;
+}
+.persistent-brand__close {
+  position: fixed;
+  z-index: 9999;
+  inset-block-start: var(--persistent-brand-top);
+  inset-inline-end: var(--persistent-brand-inline);
+  --focus: #d1f28b;
 }
 .persistent-brand__mark { display: block; border-radius: 10px; flex: 0 0 auto; }
 .persistent-brand__eyes { transform-box: fill-box; transform-origin: center; }
@@ -74,7 +83,6 @@
 .persistent-brand__lock {
   width: 22px;
   height: 22px;
-  color: #bad0ae;
   overflow: visible;
   transition: color .24s ease;
 }

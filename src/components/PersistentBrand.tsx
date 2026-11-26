@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState, type KeyboardEvent} from 'react';
-import {LayoutGrid, Palette, FileText} from 'lucide-react';
+import {LayoutGrid, Palette, FileText, X} from 'lucide-react';
 import {useUi} from '../language';
 import {kitPages, kitPaths} from '../kits';
 import {allowsMotion} from './ShaderEffects';
@@ -114,6 +114,8 @@ export function PersistentBrand({href, route, onAccess, lock}: {
       </span>
     )}
     </div>
+    {lock && <a className="persistent-brand__access persistent-brand__close" href={href}
+      aria-label={t('Закрыть вход','Close sign-in')}><X size={18} aria-hidden="true"/></a>}
     {menuOpen && <div className="persistent-brand-menu" role="menu" aria-label={t('Материалы Agentik','Agentik kits')}
       ref={menu} onKeyDown={menuKeys}>
       {kitPaths.map(kit => {

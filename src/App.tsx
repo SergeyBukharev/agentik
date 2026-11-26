@@ -1,6 +1,6 @@
 import {lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent} from 'react';
 import {Coins, LayoutGrid, Smile, Star, History, Users, Plus, Search, Sun, Moon, X, SlidersHorizontal, MessageCircle, ChevronRight, ChevronDown, Check, House, UserRound, WifiOff, FolderOpen} from 'lucide-react';
-import {catalog, categories, filterAssistants, type Assistant} from './catalog';
+import {catalog, categories, filterAssistants, getCatalog, getCategoryLabel, type Assistant} from './catalog';
 import {lastChatMessageIndex, type Conversation} from './state';
 import {hasSavedBudget} from './family-budget';
 import {readLocalRooms} from './local-rooms';
@@ -159,7 +159,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
   const page = modalRoute ? 'assistants' : route.page;
   const home = route.kind === 'home';
   const email = profile.name;
-  const all = useMemo(() => [...catalog, ...state.custom], [state.custom]);
+  const all = useMemo(() => [...getCatalog(language), ...state.custom], [language, state.custom]);
   const conversation = page === 'chat' ? state.conversations.find(item => item.id === id) : undefined;
   const assistant = page === 'assistant' || page === 'board' ? all.find(item => item.id === id)
     : all.find(item => item.id === conversation?.assistantId);
@@ -388,8 +388,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
    </button>}
  </div>;
  const proButton=session.offerPro && session.plan !== 'pro' ? <ProButton label={t('Купить PRO','Get PRO')} onClick={()=>setModal('pro')}/> : null;
- const categoryLabels:Record<string,string>={'Все':'All','Работа':'Work','Жизнь':'Life','Творчество':'Creative','Обучение':'Learning','Дом':'Home','Дизайн':'Design','Продукт':'Product','Мои помощники':'My assistants'};
- const categoryLabel=(value:string)=>language==='en' ? categoryLabels[value] ?? value : value;
+ const categoryLabel=(value:string)=>getCategoryLabel(value, language);
  const notices = useMemo(() => home ? readServiceNotices(import.meta.env.VITE_SERVICE_ANNOUNCEMENTS) : [], [home]);
  const hasRoom = useMemo(() => {
    if (!home || state.startedChat || state.conversations.length) return false;

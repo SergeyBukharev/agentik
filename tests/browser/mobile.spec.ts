@@ -317,6 +317,31 @@ test('keeps the landing sign-in fixed opposite the logo on narrow and wide scree
   }
   await login.click();
   await expect(codeField(page)).toBeVisible();
+  const close = page.getByRole('link', {name:'Закрыть вход'});
+  const lock = page.getByRole('img', {name:'Страница входа'});
+  await expect(close).toBeVisible();
+  const lockStyle = await lock.evaluate(node => {
+    const style = getComputedStyle(node);
+    return {background:style.backgroundColor,border:style.borderColor,radius:style.borderRadius};
+  });
+  await expect(close).toHaveCSS('background-color', lockStyle.background);
+  await expect(close).toHaveCSS('border-color', lockStyle.border);
+  await expect(close).toHaveCSS('border-radius', lockStyle.radius);
+  for (const width of [320, 1440]) {
+    await page.setViewportSize({width, height:640});
+    await expect(close).toBeInViewport({ratio:1});
+    const [closeBox, lockBox] = await Promise.all([close.boundingBox(), lock.boundingBox()]);
+    const logoInset = await logo.evaluate(node => getComputedStyle(node.closest('.persistent-brand-bar')!).insetInlineStart);
+    await expect(close).toHaveCSS('inset-inline-end', logoInset);
+    expect(closeBox!.width).toBe(lockBox!.width);
+    expect(closeBox!.height).toBe(lockBox!.height);
+    expect(closeBox!.y).toBe(lockBox!.y);
+    expect(closeBox!.x).toBeGreaterThan(lockBox!.x + lockBox!.width);
+    await expectNoHorizontalScroll(page);
+  }
+  await close.press('Enter');
+  await expect(page.getByRole('link', {name:'Войти по коду'})).toBeVisible();
+  await expect(close).toBeHidden();
 });
 
 test('keeps the landing, code form, catalog, chat, modal and 404 inside the viewport', async ({page}) => {

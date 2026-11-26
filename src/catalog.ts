@@ -1,4 +1,8 @@
+import {getChatSuggestions} from './chat-suggestions';
+import type {Language} from './language';
+
 export type Assistant = {id:string; name:string; description:string; category:string; kind:'assistant'|'character'; icon:string; color:string; prompts:string[]; instruction:string};
+type CatalogAssistant = Assistant & {id: CatalogId};
 const rows = [
  ['budget','Семейный финансист','Сколько осталось на день, что оплатить и куда ушли деньги.','Жизнь','Wallet','lime','Помоги разобрать чек','Помоги спланировать платежи','Покажи, куда ушли деньги'],
  ['writer','Редактор','Превратим мысли в текст, который хочется читать.','Работа','PenLine','lavender','Отредактируй мой текст, сохранив авторский стиль','Напиши понятное письмо коллеге',"Сократи текст, сохранив главное"],
@@ -38,7 +42,7 @@ const roleGuidance: Record<string, string> = {
   'product-manager': 'Разделяй измеренные данные и допущения. Для экономики укажи формулы и чувствительность, для команды — роли и критерии найма, для бэклога — критерии RICE и объяснение оценок.',
   'graphic-designer': 'Предлагай оригинальные концепции, спецификации размеров, композицию, палитру и текст. Уточни площадку, аудиторию и формат результата.',
 };
-export const catalog:Assistant[] = rows.map(([id,name,description,category,icon,color,...prompts]) => ({id,name,description,category,icon,color,prompts:[...prompts],kind:'assistant',instruction:`Ты — ${name}, помощник Agentik. ${description} Отвечай по-русски, если не просят иначе. Уточняй важный контекст. ${roleGuidance[id] ?? ''} Не выдумывай факты и источники. Не выдавай финансовые, медицинские или юридические предположения за профессиональную консультацию.`}));
+export const catalog:CatalogAssistant[] = rows.map(([id,name,description,category,icon,color,...prompts]) => ({id,name,description,category,icon,color,prompts:[...prompts],kind:'assistant',instruction:`Ты — ${name}, помощник Agentik. ${description} Отвечай по-русски, если не просят иначе. Уточняй важный контекст. ${roleGuidance[id] ?? ''} Не выдумывай факты и источники. Не выдавай финансовые, медицинские или юридические предположения за профессиональную консультацию.`}));
 const characters = [
  ['mira','Мира','Мечтательная путешественница из города у моря.','Compass','blue','Расскажи о самом необычном месте в твоём городе',"Придумай маршрут по тайным местам у моря"],
  ['leo','Лео','Ироничный киноман. Всегда есть что обсудить.','Clapperboard','peach','Давай обсудим фильм, который меня удивил',"Посоветуй фильм для сегодняшнего вечера"],
@@ -48,7 +52,67 @@ const characters = [
  ['kai','Кай','Художник, замечающий необычное в повседневном.','Palette','blue','Покажи привычный день глазами художника',"Предложи идею рисунка для моего скетчбука"],
 ] as const;
 export type CatalogId = (typeof rows)[number][0] | (typeof characters)[number][0];
-catalog.push(...characters.map(([id,name,description,icon,color,prompt,improvise]):Assistant=>({id,name,description,icon,color,category:'Персонажи',kind:'character',prompts:[prompt,'Давай познакомимся',improvise],instruction:`Ты играешь вымышленного персонажа ${name}. ${description} Поддерживай творческий диалог на русском. Не утверждай, что ты реальный человек. Уважай границы собеседника.`})));
+catalog.push(...characters.map(([id,name,description,icon,color,prompt,improvise]):CatalogAssistant=>({id,name,description,icon,color,category:'Персонажи',kind:'character',prompts:[prompt,'Давай познакомимся',improvise],instruction:`Ты играешь вымышленного персонажа ${name}. ${description} Поддерживай творческий диалог на русском. Не утверждай, что ты реальный человек. Уважай границы собеседника.`})));
+
+const englishCopy = {
+  budget: ['Family finance assistant', 'See what you can spend today, which bills are due, and where your money went.'],
+  writer: ['Editor', 'Turn your thoughts into something people want to read.'],
+  career: ['Career guide', 'Get help with your resume, interviews, and your next career move.'],
+  ideas: ['Idea generator', 'Find a fresh angle when you need a creative nudge.'],
+  english: ['English buddy', 'Try out your English without worrying about mistakes.'],
+  chef: ['Home chef', 'Make something good with what’s already in the fridge.'],
+  planner: ['Day planner', 'Break a busy day or a difficult task into manageable steps.'],
+  travel: ['Travel companion', 'Plan routes and find places to visit at your own pace.'],
+  study: ['Study partner', 'Make sense of a tricky topic with simple examples.'],
+  social: ['Content partner', 'Write posts, plan recurring topics, and tell stories in your own voice.'],
+  code: ['Code reviewer', 'Find bugs and get clear explanations of your code.'],
+  presentation: ['Presentation coach', 'Give each slide one clear point.'],
+  meeting: ['Meeting notes', 'Capture decisions, next steps, and ideas worth keeping.'],
+  habits: ['Habit coach', 'Build small habits that fit your life.'],
+  books: ['Book guide', 'Find the next book you won’t want to put down.'],
+  garden: ['Plant care guide', 'Care for your plants and grow a garden at home.'],
+  home: ['Home organizer', 'Keep your home tidy in short, manageable sessions.'],
+  gifts: ['Gift finder', 'Find a thoughtful gift for someone you care about, even for a small occasion.'],
+  repair: ['DIY helper', 'Work through simple repairs and home projects.'],
+  family: ['Family organizer', 'Make plans together, find things to do on weekends, and keep family traditions going.'],
+  story: ['Story co-writer', 'Find a plot, bring characters to life, and write the opening lines.'],
+  design: ['Design partner', 'Shape your layout, explore ideas, and explain your design choices.'],
+  photo: ['Photography coach', 'Use light and composition to make more expressive photos.'],
+  music: ['Music guide', 'Explore new genres and find music to suit your mood.'],
+  naming: ['Naming assistant', 'Find a name that fits your project and says something about it.'],
+  math: ['Everyday math', 'Go from “why?” to a solution you understand.'],
+  science: ['Science explainer', 'Ask questions about how the world works.'],
+  language: ['Translation guide', 'Translate with context and find the right words for the situation.'],
+  learning: ['Learning coach', 'Plan how to learn a skill and practice at a manageable pace.'],
+  weekend: ['Weekend planner', 'Find small adventures and make time for yourself.'],
+  'graphic-designer': ['Graphic designer & illustrator', 'Develop ideas and briefs for logos, banners, and presentations.'],
+  'product-manager': ['Product manager', 'Model unit economics, research user problems, and plan hiring and priorities.'],
+  mira: ['Mira', 'A daydreaming traveler from a town by the sea.'],
+  leo: ['Leo', 'A film buff with a dry wit and plenty to talk about.'],
+  nova: ['Nova', 'An explorer of distant galaxies.'],
+  felix: ['Felix', 'A bookshop owner with remarkable stories to tell.'],
+  ada: ['Ada', 'A detective who finds something interesting in every mystery.'],
+  kai: ['Kai', 'An artist who spots the unusual in everyday life.'],
+} satisfies Record<CatalogId, [name:string, description:string]>;
+
+const englishCatalog = catalog.map(assistant => {
+  const [name, description] = englishCopy[assistant.id];
+  return {...assistant, name, description, prompts:getChatSuggestions(assistant, 'en')};
+});
+
+export function getCatalog(language: Language) {
+  return language === 'en' ? englishCatalog : catalog;
+}
+
+const englishCategories: Record<string, string> = {
+  'Все':'All', 'Работа':'Work', 'Жизнь':'Life', 'Творчество':'Creative', 'Обучение':'Learning',
+  'Дом':'Home', 'Дизайн':'Design', 'Продукт':'Product', 'Персонажи':'Characters', 'Мои помощники':'My assistants',
+};
+
+export function getCategoryLabel(category: string, language: Language) {
+  return language === 'en' ? englishCategories[category] ?? category : category;
+}
+
 export const categories = ['Все','Работа','Жизнь','Творчество','Обучение','Дом','Дизайн','Продукт'];
 export function filterAssistants(items:Assistant[], query:string, category:string):Assistant[] {
   const words=query.trim().toLocaleLowerCase('ru').split(/\s+/).filter(Boolean);
