@@ -6,11 +6,13 @@ import {
   joinLocalRoom, makeRoom, postLocalMessage, renewLocalInvite, setLocalRoomPrivacy, type LocalRoom,
 } from '../local-rooms';
 import type {LocalProfile} from '../session';
+import {telegramShareSnapshot} from '../telegram-share-client';
 import {ChatComposer, MessageImages} from './ChatComposer';
 import {Modal} from './Modal';
 import {RoomAccessDialog, roomError, useLocalRooms} from './RoomAccess';
 import {Scene} from './Scene';
 import {WelcomeTitle} from './ShaderEffects';
+import {TelegramShare} from './TelegramShare';
 
 type RoomsProps = {
   roomId?: string;
@@ -21,6 +23,7 @@ type RoomsProps = {
   onCreate?: () => void;
   messagePrice?: number;
   billMessage?: (commit:()=>boolean) => Promise<boolean>;
+  telegramShareToken?: string;
 };
 
 const RoomMessages = memo(function RoomMessages({messages, profileId, language}: {
@@ -38,7 +41,7 @@ const RoomMessages = memo(function RoomMessages({messages, profileId, language}:
   ));
 });
 
-export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCreate, messagePrice, billMessage}: RoomsProps) {
+export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCreate, messagePrice, billMessage, telegramShareToken}: RoomsProps) {
   const t = (ru: string, en: string) => language === 'en' ? en : ru;
   const {rooms, storageUnavailable} = useLocalRooms(profile.id);
   const [error, setError] = useState('');
@@ -143,6 +146,15 @@ export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCr
               {room.private ? <LockKeyhole size={17}/> : <Link2 size={17}/>}
               <span>{room.private ? t('Доступ', 'Access') : t('Пригласить', 'Invite')}</span>
             </button>
+            {import.meta.env.VITE_TELEGRAM_MINI_APP === 'true' && owner && telegramShareToken && (
+              <TelegramShare key={room.id} source={`room:${room.id}`} token={telegramShareToken} language={language}
+                snapshot={() => telegramShareSnapshot(room.title.trim() || t('Группа', 'Group'), room.messages, message => ({
+                  author:message.name.trim() || t('Участник', 'Participant'),
+                  role:typeof message.userId === 'string' && message.userId.startsWith('assistant:') ? 'assistant' : 'user',
+                  text:message.body,
+                  hasImage:!!message.images?.length,
+                }))}/>
+            )}
           </div>
         </header>
         <div className="chat__messages room-message-list" aria-live="polite" data-long-thread={room.messages.length > 60 || undefined}>

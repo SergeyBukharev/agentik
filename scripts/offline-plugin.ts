@@ -40,6 +40,11 @@ self.addEventListener('fetch',event=>{
   if(request.mode==='navigate'){
     event.respondWith((async()=>{
       const cache=await caches.open(CACHE);
+      if(url.pathname===BASE+'widget.html'&&ASSETS.has(url.pathname)){
+        const widget=await cache.match(url.pathname);
+        if(widget)return widget;
+        return fetch(request);
+      }
       const shell=await cache.match(BASE);
       if(shell) return url.pathname===BASE ? shell : new Response(shell.body,{status:404,headers:shell.headers});
       try{return await fetch(request);}

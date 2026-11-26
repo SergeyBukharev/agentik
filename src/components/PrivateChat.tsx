@@ -12,6 +12,8 @@ import type {ChatImage, ChatModel} from '../chat-media';
 import type {ChatDrafts} from '../chat-drafts';
 import type {LocalProfile} from '../session';
 import {useUi} from '../language';
+import {telegramShareSnapshot} from '../telegram-share-client';
+import {TelegramShare} from './TelegramShare';
 
 const FamilyBudget = lazy(() => import('./FamilyBudget').then(module => ({default:module.FamilyBudget})));
 
@@ -29,7 +31,7 @@ const PrivateMessages = memo(function PrivateMessages({messages, assistantName, 
   ));
 });
 
-export function PrivateChat({assistant, conversation, profile, messagePrice, mode, online, busy, drafts, error, onSend, model, onModel}: {
+export function PrivateChat({assistant, conversation, profile, messagePrice, mode, online, busy, drafts, error, onSend, model, onModel, telegramShareToken}: {
   assistant: Assistant;
   conversation?: Conversation;
   profile: LocalProfile;
@@ -42,6 +44,7 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
   onSend: (retry: boolean, anchor: HTMLElement | null, images?:ChatImage[]) => boolean | Promise<boolean>;
   model: ChatModel;
   onModel: (model: ChatModel) => void;
+  telegramShareToken?: string;
 }) {
   const {t,language}=useUi();
   const draftField = useRef<HTMLTextAreaElement>(null);
@@ -79,6 +82,15 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
         </div>
         {conversation && <div className="chat__header-actions">
           <ChatSharing conversation={conversation} profile={profile} assistantName={assistant.name} language={language}/>
+          {import.meta.env.VITE_TELEGRAM_MINI_APP === 'true' && telegramShareToken && (
+            <TelegramShare key={conversation.id} source={`chat:${conversation.id}`} token={telegramShareToken} language={language}
+              snapshot={() => telegramShareSnapshot(conversation.title.trim() || assistant.name.trim() || t('Чат', 'Chat'), conversation.messages, message => ({
+                author:message.role === 'user' ? profile.name.trim() || t('Участник', 'Participant') : assistant.name.trim() || t('Помощник', 'Assistant'),
+                role:message.role,
+                text:message.content,
+                hasImage:!!message.images?.length,
+              }))}/>
+          )}
           <a className="button button--secondary" href={`#/assistant/${assistant.id}`}>{t('Новый разговор','New chat')}</a>
         </div>}
       </div>

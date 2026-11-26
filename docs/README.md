@@ -2,6 +2,8 @@
 
 [Agentik на GitHub Pages](https://sergeybukharev.github.io/agentik/)
 
+[Полный указатель материалов](project-materials.md) · [Telegram Mini App и виджет чата](telegram-mini-app.md) · [Следующие гипотезы](next-hypotheses.md)
+
 ## Продукт и интерфейс
 
 - [Полная карта экранов и функций](experience-map.md). Основные сценарии, прямые ссылки на помощников, настройки и состояния ошибок.

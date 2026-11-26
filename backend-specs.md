@@ -2,6 +2,19 @@
 
 Фронтенд получает адрес API из `VITE_API_URL`, в локальном Vite используется тот же origin. Для проверки запустите `npm run dev` или отдельно `npm run server`. Используйте тестовую пару из серверного `.env`.
 
+## Чат в Telegram
+
+Сборка Telegram использует `server.mjs` из архива. В ней `/api/telegram/shares?source=chat:<id>` и `/api/telegram/shares?source=room:<id>` требуют Bearer-сессию из `/api/access/login`. Состояние определяется аккаунтом и идентификатором чата.
+
+| Метод и путь | Вход и выход |
+| --- | --- |
+| `GET /api/telegram/shares?source=…` | Возвращает `{share: null}` или `{share: {id, url, expiresAt}}`. |
+| `PUT /api/telegram/shares?source=…` | Принимает `{title, messages}`. У сообщения есть `author`, `text`, `role` и необязательный `hasImage`. До 50 сообщений. Ответ `{share: {id, url, expiresAt}}`. Предыдущая ссылка отзывается. |
+| `DELETE /api/telegram/shares?source=…` | Отзывает ссылку текущего аккаунта, ответ 204. |
+| `GET /api/telegram/shares/<id>` | По действующему идентификатору возвращает `{title, messages, expiresAt}`. Ответ 404 для отозванной, истёкшей или неизвестной ссылки. |
+
+`expiresAt` задаётся в миллисекундах Unix. Срок ссылки 24 часа. Ответы копий отправляются с `Cache-Control: no-store`. Каталог `TELEGRAM_SHARE_DIR` расположен вне статики. Разрешённый origin задаёт `ALLOWED_ORIGIN`. `tgWebAppStartParam` открывает нужную копию. Вход владельца проверяет код Agentik. [Telegram Mini Apps](https://core.telegram.org/bots/webapps#direct-link-mini-apps)
+
 ## Работающие маршруты
 
 | Метод и путь | Запрос и ответ |

@@ -1,10 +1,12 @@
 import {createAccess, type AccessConfig} from './access.ts';
 import {isChatImage, isChatModel, type ChatImage, type ChatModel} from '../src/chat-media.ts';
 import {MAX_MEDIA_CHAT_BODY_BYTES, MAX_CHAT_BODY_BYTES, MAX_CHAT_MESSAGES, MAX_CHAT_MESSAGE_LENGTH} from '../src/chat-contract.ts';
+import {TELEGRAM_SHARE_PREFIX} from '../src/telegram-share-contract.ts';
+import type {TelegramShareHandler} from './telegram-shares.ts';
 
 type Provider = {apiKey?:string;apiBase?:string;model?:string;vision?:boolean;authScheme?:'Bearer'|'Api-Key';project?:string};
 type Turn = {role:'user'|'assistant';content:string;images?:ChatImage[]};
-export type ServerConfig=Provider & {providers?:Partial<Record<Exclude<ChatModel,'auto'>,Provider>>;localToken?:string;origin?:string;origins?:string[];supabaseUrl?:string;supabaseKey?:string;fetcher?:typeof fetch;access?:AccessConfig};
+export type ServerConfig=Provider & {providers?:Partial<Record<Exclude<ChatModel,'auto'>,Provider>>;localToken?:string;origin?:string;origins?:string[];supabaseUrl?:string;supabaseKey?:string;fetcher?:typeof fetch;access?:AccessConfig;telegramShares?:TelegramShareHandler};
 export function createHandler(config:ServerConfig) {
  const fetcher=config.fetcher??fetch;
  const hits=new Map<string,{count:number;start:number}>();
@@ -19,10 +21,19 @@ export function createHandler(config:ServerConfig) {
    headers['Access-Control-Allow-Origin']=origin;
    headers['Access-Control-Expose-Headers']='Retry-After';
   }
-  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Authorization, Content-Type'}});
   const url = new URL(req.url);
   const path = url.pathname;
+  const telegramOwnerRoute = path === TELEGRAM_SHARE_PREFIX;
+  const telegramRoute = config.telegramShares && (telegramOwnerRoute || path.startsWith(`${TELEGRAM_SHARE_PREFIX}/`));
+  if (req.method === 'OPTIONS') {
+   const methods = telegramRoute ? (telegramOwnerRoute ? 'GET, PUT, DELETE, OPTIONS' : 'GET, OPTIONS') : 'GET, POST, OPTIONS';
+   return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Methods':methods,'Access-Control-Allow-Headers':'Authorization, Content-Type'}});
+  }
   if (path.startsWith('/api/access/') && access) return access.respond(req, path, clientAddress, headers);
+  if (telegramRoute && config.telegramShares) {
+   const token = telegramOwnerRoute ? req.headers.get('Authorization')?.match(/^Bearer (\S+)$/)?.[1] : undefined;
+   return config.telegramShares(req, token ? access?.verify(token) ?? null : null, headers);
+  }
   if(path!=='/api/chat')return out(404,{error:'Не найдено.'});
   if(req.method!=='POST')return out(405,{error:'Используйте POST.'});
   const token=req.headers.get('Authorization')?.match(/^Bearer (\S+)$/)?.[1];

@@ -1,43 +1,261 @@
+import json
 from pathlib import Path
+from xml.sax.saxutils import escape
+
+from pypdf import PdfReader
+from reportlab.graphics.shapes import Circle, Drawing, Ellipse, Line, Rect
+from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_LEFT
-from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,PageBreak,Table,TableStyle
-from reportlab.graphics.shapes import Drawing,Rect,Circle,Line,Ellipse
-from pypdf import PdfReader
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-ROOT=Path(__file__).resolve().parents[2]
-pdfmetrics.registerFont(TTFont('ArialRU','C:/Windows/Fonts/arial.ttf'))
-pdfmetrics.registerFont(TTFont('ArialRUB','C:/Windows/Fonts/arialbd.ttf'))
-pdfmetrics.registerFontFamily('ArialRU',normal='ArialRU',bold='ArialRUB',italic='ArialRU',boldItalic='ArialRUB')
-INK=colors.HexColor('#263021');MUTED=colors.HexColor('#697262');LIME=colors.HexColor('#D1F28B');SOFT=colors.HexColor('#F2F5ED')
-styles=getSampleStyleSheet()
-styles.add(ParagraphStyle(name='BodyRU',fontName='ArialRU',fontSize=10.3,leading=16,textColor=INK,spaceAfter=10))
-styles.add(ParagraphStyle(name='TitleRU',fontName='ArialRUB',fontSize=33,leading=38,textColor=INK,spaceAfter=16))
-styles.add(ParagraphStyle(name='HeadRU',fontName='ArialRUB',fontSize=20,leading=25,textColor=INK,spaceBefore=10,spaceAfter=14))
-styles.add(ParagraphStyle(name='SubRU',fontName='ArialRUB',fontSize=12,leading=17,textColor=INK,spaceBefore=12,spaceAfter=7))
-styles.add(ParagraphStyle(name='SmallRU',fontName='ArialRU',fontSize=8,leading=12,textColor=MUTED,spaceAfter=7))
-def p(t,style='BodyRU'):return Paragraph(t,styles[style])
-def h(t):return p(t,'SubRU')
-def mascot(together=False):
- d=Drawing(480,165);d.add(Ellipse(240,24,130,12,fillColor=SOFT,strokeColor=None));d.add(Circle(230,84,66,fillColor=SOFT,strokeColor=None))
- d.add(Rect(164,40,112,104,rx=30,fillColor=LIME,strokeColor=INK,strokeWidth=1.3));d.add(Rect(180,68,80,51,rx=18,fillColor=INK,strokeColor=None));d.add(Rect(198,85,9,18,rx=4,fillColor=LIME,strokeColor=None));d.add(Rect(232,85,9,18,rx=4,fillColor=LIME,strokeColor=None));d.add(Line(212,76,227,76,strokeColor=LIME,strokeWidth=2));d.add(Line(220,144,220,157,strokeColor=INK,strokeWidth=2));d.add(Circle(220,159,4,fillColor=colors.HexColor('#B6A3D3'),strokeColor=None))
- if together:
-  d.add(Rect(286,39,63,70,rx=20,fillColor=colors.HexColor('#E5DBF3'),strokeColor=colors.HexColor('#81718F')));d.add(Circle(306,80,4,fillColor=INK,strokeColor=None));d.add(Circle(329,80,4,fillColor=INK,strokeColor=None));d.add(Line(310,62,325,62,strokeColor=INK,strokeWidth=2))
- else:
-  d.add(Rect(300,65,55,68,rx=8,fillColor=colors.white,strokeColor=colors.HexColor('#C5CDBB')))
-  for y in [115,102,89]:d.add(Line(311,y,343,y,strokeColor=MUTED,strokeWidth=2))
- d.add(Circle(124,102,6,fillColor=colors.HexColor('#EAC9B2'),strokeColor=None));d.add(Line(363,141,363,161,strokeColor=colors.HexColor('#8F79AE'),strokeWidth=2));d.add(Line(353,151,373,151,strokeColor=colors.HexColor('#8F79AE'),strokeWidth=2));return d
-def table(rows,widths):
- t=Table([[p(str(x),'SmallRU') for x in row] for row in rows],colWidths=widths,hAlign='LEFT');t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),SOFT),('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),10),('RIGHTPADDING',(0,0),(-1,-1),10),('TOPPADDING',(0,0),(-1,-1),9),('BOTTOMPADDING',(0,0),(-1,-1),6),('LINEBELOW',(0,0),(-1,-1),.4,colors.HexColor('#E1E6DA'))]));return t
-story=[p('agentik.','TitleRU'),p('Меньше рутины.<br/>Больше жизни.','TitleRU'),p('Продуктовая и маркетинговая стратегия','HeadRU'),p('Рабочая гипотеза для frontend-прототипа · 26 ноября 2026','SmallRU'),mascot(),h('Кому и зачем'),p('Сервис помогает выбрать AI-помощника под конкретное повседневное дело, начать с готового примера и вернуться к разговору. Практические помощники отделены от вымышленных персонажей. Главная ценность для проверки: человеку понятнее начать с задачи, чем с пустого поля ввода.'),h('Что уже можно проверить'),p('Каталог из 30 помощников и 6 персонажей, поиск, избранное, создание своего помощника, история, локальные профили и общие комнаты на одном устройстве. Демо-ответы явно обозначены. Настоящий AI и мультиплеер между устройствами требуют подключения сервера.'),p('<b>Статус доказательств.</b> У Agentik пока нет продуктовой аналитики, интервью, продаж и подтверждённого спроса. Аудитория, цена и каналы ниже - гипотезы. Референсы Mobbin показывают решения интерфейса, но не доказывают их коммерческую эффективность.','SmallRU'),PageBreak()]
-story += [p('Аудитория и задачи','HeadRU'),p('Три стартовых сегмента - для рекрутинга на интервью, а не описание существующих клиентов.','SmallRU'),table([['Сегмент-гипотеза','Конкретная задача','Что проверяем'],['Специалист с текстовыми задачами','Отредактировать письмо или резюме перед отправкой','Понимает ли роль помощника; получает ли пригодный результат'],['Человек, организующий повседневные дела','Придумать ужин, поездку или план дня','Помогают ли готовые примеры начать разговор'],['Начинающий в новой теме','Разобраться в английском, коде или учебной задаче','Хватает ли простого объяснения и возможности продолжить']], [148,165,198]),h('На какие внешние данные опираемся'),p('В публикации OpenAI о потребительском использовании ChatGPT практические советы, поиск информации и работа с текстом составляют около трёх четвертей рассмотренных разговоров. Это контекст выбора сценариев, а не оценка рынка или пользователей Agentik.'),p('Источник: <link href="https://openai.com/index/how-people-are-using-chatgpt/" color="#356627">OpenAI - How people are using ChatGPT</link>. Выборка и период исследования относятся к ChatGPT; перенос на Agentik требует проверки.','SmallRU'),h('Первые исследования'),p('Провести 8-10 интервью по последней реальной задаче и 5-8 наблюдаемых мобильных сессий. Задания: найти редактора, отправить запрос, сохранить помощника, вернуться к истории, создать комнату и пригласить второй профиль. Фиксировать время, ошибки и необходимость подсказки; записывать согласие участника.'),h('Позиционирование'),p('«Понятный помощник для конкретного дела». Не обещать безошибочные ответы, экономию времени в процентах или человеческие отношения с персонажами. Сообщения на лендинге показывают задачу и результат на одном примере.'),PageBreak()]
-story += [p('Мобильный интерфейс','HeadRU'),mascot(True),table([['Наблюдение в референсе','Решение Agentik'],['Character AI: категории, сетка, нижняя навигация','Каталог и категории в первом экране, постоянная панель основных разделов'],['Character AI: примеры первого сообщения','Готовые стартовые запросы рядом с началом разговора'],['Meta AI: список недавних разговоров','История по времени с названием задачи и помощником']], [245,266]),h('Источники Mobbin, iOS'),p('<link href="https://mobbin.com/screens/26343f18-20a1-4140-8b6e-769ab72bde3f" color="#356627">Character AI - каталог и навигация</link><br/><link href="https://mobbin.com/screens/ff123a05-48c8-438d-971e-357c1a18e028" color="#356627">Character AI - примеры начала разговора</link><br/><link href="https://mobbin.com/screens/fbd4427a-94db-4ed8-908c-6d015b246ac1" color="#356627">Meta AI - недавние чаты</link>','SmallRU'),h('Проектные решения, которые ещё нужно проверить'),p('Уменьшить промоконтент на мобильном; оставить каталог, чаты, избранное и профиль в нижней панели; создавать помощника центральной кнопкой. Шторки применяются для коротких форм. SVG-иллюстрации выражают состояние, а не заменяют действие. Анимация отключается при prefers-reduced-motion.'),p('Сессии и данные локальных профилей имеют срок 90 дней с продлением при использовании. Браузер может удалить локальные данные при очистке или нехватке места. Кеш не является резервной копией, а локальный профиль - серверной авторизацией.','SmallRU'),PageBreak()]
-story += [p('Выход на первые проверки','HeadRU'),h('Каналы-гипотезы'),p('Начать с демонстраций одной задачи: до/после редактирования письма, меню из продуктов, объяснение сложной темы. Разместить примеры в собственных профессиональных и учебных сообществах при разрешении модераторов. Небольшие партнёрства с авторами полезных материалов проверять отдельными ссылками. Платную рекламу не масштабировать до измерения повторного использования.'),table([['Эксперимент','Критерий для решения, не обещание','Следующий шаг'],['Каталог против пустого чата','В 8 тестовых сессиях человек начинает целевой разговор без подсказки; порог заранее 6/8','Разобрать каждую ошибку выбора'],['Готовые примеры запросов','Сравнить самостоятельный старт с примером; фиксировать удачный итог, не только нажатие','Оставить понятные примеры'],['Повторное использование','Пригласить 20 согласившихся участников; измерить возврат через 7 дней','Сначала интервью с не вернувшимися'],['Общая комната','В 5 парных сессиях участники принимают приглашение и обмениваются сообщениями','Проверить серверный прототип до релиза']], [138,225,148]),h('Измерения после подключения аналитики'),p('События: catalog_open, assistant_open, starter_selected, message_sent, reply_received, favorite_added, history_opened, room_created, invite_accepted. Передавать только технические идентификаторы и длительности; не отправлять тексты сообщений. В текущем прототипе внешняя аналитика не подключена.'),h('Порядок работ на четыре недели'),p('Неделя 1: интервью и мобильные сценарии. Неделя 2: проверка прототипа, исправление повторяющихся ошибок. Неделя 3: ограниченный пилот с настоящим AI и лимитами. Неделя 4: разбор качества, стоимости успешной задачи и повторного использования. Решение о серверном мультиплеере и монетизации принимается по результатам.'),PageBreak()]
-story += [p('Экономика и решение о запуске','HeadRU'),p('Сопутствующий XLSX содержит активный расчёт и снимки трёх сценариев. Все тарифы, нагрузка и конверсии - редактируемые предположения. Условные ставки AI не являются актуальным предложением провайдера.'),table([['Базовое допущение / результат','Значение'],['MAU / конверсия в подписку','10 000 / 5%'],['Подписка / комиссия','$12 в месяц / 3%'],['Переменные затраты на MAU','$0,51'],['Постоянные расходы','$550 в месяц'],['Операционный результат','$170 в месяц'],['Безубыточность','7 639 MAU'],['Коммерческая разработка с резервом','$55 152'],['Простой возврат разработки','Около 324 месяцев при неизменном результате']], [325,186]),h('Что означает базовый сценарий'),p('Небольшой положительный вклад на активного пользователя не покрывает быстро стоимость разработки. LTV/CAC в грубой модели ниже единицы. Прежде чем запускать платное привлечение, проверить лимиты бесплатного режима, фактическую стоимость контекста и готовность платить. Эти расчёты не подтверждают жизнеспособность бизнеса.'),h('Граница прототипа'),p('Сейчас ценность - проверяемые frontend-сценарии с явным деморежимом. Нет платежей, гарантий сохранности данных, фактической многопользовательской нагрузки или проведённого исследования аудитории. Опциональные server/Supabase файлы - заготовка, не условие запуска.'),p('Дополнительные технические источники: <link href="https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum" color="#356627">W3C: Target Size</link>; <link href="https://vite.dev/guide/static-deploy.html" color="#356627">Vite: Static Deploy</link>; <link href="https://www.radix-ui.com/primitives/docs/components/dialog" color="#356627">Radix: Dialog</link>.','SmallRU')]
-def footer(canvas,doc):
- canvas.saveState();canvas.setStrokeColor(colors.HexColor('#E1E6DA'));canvas.line(42,42,553,42);canvas.setFont('ArialRU',8);canvas.setFillColor(MUTED);canvas.drawString(42,27,'agentik / Рабочие гипотезы / 26.11.2026');canvas.drawRightString(553,27,str(doc.page));canvas.restoreState()
-path=ROOT/'docs/marketing-strategy.pdf';SimpleDocTemplate(str(path),pagesize=(595,842),leftMargin=42,rightMargin=42,topMargin=40,bottomMargin=58,title='Agentik - продуктовая и маркетинговая стратегия',author='Agentik').build(story,onFirstPage=footer,onLaterPages=footer)
-reader=PdfReader(path);assert len(reader.pages)==5,f'Unexpected pages: {len(reader.pages)}';assert all(len(page.extract_text())>300 for page in reader.pages);print(f'PDF saved, {len(reader.pages)} pages; Cyrillic text extracted.')
+ROOT = Path(__file__).resolve().parents[2]
+PAGE_WIDTH = 595
+PAGE_HEIGHT = 842
+MARGIN = 42
+CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN - 12
+
+pdfmetrics.registerFont(TTFont('ArialRU', 'C:/Windows/Fonts/arial.ttf'))
+pdfmetrics.registerFont(TTFont('ArialRUB', 'C:/Windows/Fonts/arialbd.ttf'))
+pdfmetrics.registerFontFamily('ArialRU', normal='ArialRU', bold='ArialRUB', italic='ArialRU', boldItalic='ArialRUB')
+
+palette = json.loads((ROOT / 'design-system/colors.json').read_text(encoding='utf-8'))['light']
+INK = colors.HexColor(palette['ink'])
+MUTED = colors.HexColor(palette['muted'])
+LIME = colors.HexColor(palette['lime'])
+LIME_SOFT = colors.HexColor(palette['lime-soft'])
+SOFT = colors.HexColor(palette['soft'])
+RULE = colors.HexColor(palette['line'])
+LINK = palette['focus']
+
+styles = getSampleStyleSheet()
+styles.add(ParagraphStyle(name='BodyRU', fontName='ArialRU', fontSize=10.5, leading=15, textColor=INK, spaceAfter=9))
+styles.add(ParagraphStyle(name='WordmarkRU', fontName='ArialRUB', fontSize=21, leading=24, textColor=INK, spaceAfter=26))
+styles.add(ParagraphStyle(name='TitleRU', fontName='ArialRUB', fontSize=33, leading=37, textColor=INK, spaceAfter=14))
+styles.add(ParagraphStyle(name='HeadRU', fontName='ArialRUB', fontSize=23, leading=27, textColor=INK, spaceAfter=14))
+styles.add(ParagraphStyle(name='SubRU', fontName='ArialRUB', fontSize=12, leading=16, textColor=INK, spaceBefore=10, spaceAfter=6))
+styles.add(ParagraphStyle(name='SmallRU', fontName='ArialRU', fontSize=9, leading=13, textColor=MUTED, spaceAfter=7))
+styles.add(ParagraphStyle(name='CellRU', fontName='ArialRU', fontSize=9.5, leading=13, textColor=INK))
+styles.add(ParagraphStyle(name='CellHeadRU', fontName='ArialRUB', fontSize=9.5, leading=13, textColor=INK))
+
+
+def p(text, style='BodyRU'):
+    return Paragraph(text, styles[style])
+
+
+def h(text):
+    return p(text, 'SubRU')
+
+
+def link(url, label):
+    return f'<link href="{escape(url)}" color="{LINK}">{escape(label)}</link>'
+
+
+def mascot():
+    art = Drawing(CONTENT_WIDTH, 165)
+    art.add(Ellipse(240, 24, 130, 12, fillColor=SOFT, strokeColor=None))
+    art.add(Circle(230, 84, 66, fillColor=SOFT, strokeColor=None))
+    art.add(Rect(164, 40, 112, 104, rx=30, fillColor=LIME, strokeColor=INK, strokeWidth=1.3))
+    art.add(Rect(180, 68, 80, 51, rx=18, fillColor=INK, strokeColor=None))
+    art.add(Rect(198, 85, 9, 18, rx=4, fillColor=LIME, strokeColor=None))
+    art.add(Rect(232, 85, 9, 18, rx=4, fillColor=LIME, strokeColor=None))
+    art.add(Line(212, 76, 227, 76, strokeColor=LIME, strokeWidth=2))
+    art.add(Line(220, 144, 220, 157, strokeColor=INK, strokeWidth=2))
+    art.add(Circle(220, 159, 4, fillColor=colors.HexColor('#B6A3D3'), strokeColor=None))
+    art.add(Rect(300, 65, 55, 68, rx=8, fillColor=colors.white, strokeColor=RULE))
+    for y in (115, 102, 89):
+        art.add(Line(311, y, 343, y, strokeColor=MUTED, strokeWidth=2))
+    art.add(Circle(124, 102, 6, fillColor=colors.HexColor('#EAC9B2'), strokeColor=None))
+    art.add(Line(363, 141, 363, 161, strokeColor=colors.HexColor('#8F79AE'), strokeWidth=2))
+    art.add(Line(353, 151, 373, 151, strokeColor=colors.HexColor('#8F79AE'), strokeWidth=2))
+    return art
+
+
+def table(rows, widths):
+    assert sum(widths) == CONTENT_WIDTH
+    cells = [[p(text, 'CellHeadRU' if index == 0 else 'CellRU') for text in row] for index, row in enumerate(rows)]
+    grid = Table(cells, colWidths=widths, hAlign='LEFT', repeatRows=1)
+    grid.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), LIME_SOFT),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 10),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LINEBELOW', (0, 0), (-1, -1), .5, RULE),
+    ]))
+    return grid
+
+
+def note(text):
+    panel = Table([[p(text, 'CellRU')]], colWidths=[CONTENT_WIDTH], hAlign='LEFT')
+    panel.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), SOFT),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 11),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 11),
+    ]))
+    return panel
+
+
+pages = [
+    [
+        p('agentik', 'WordmarkRU'),
+        p('Продуктовая и<br/>маркетинговая стратегия', 'TitleRU'),
+        p('План первого продуктового пилота · 26 ноября 2026', 'SmallRU'),
+        mascot(),
+        h('Кому и зачем'),
+        p('Agentik помогает выбрать AI-помощника под конкретное дело, начать с готового запроса и вернуться к разговору. '
+          'Проверяем, где такой вход помогает завершить задачу и где люди возвращаются к результату.'),
+        h('Что уже можно показать'),
+        p('В прототипе работают каталог с поиском и примерами, избранное, свои помощники и история. '
+          'В чате «Семейный финансист» есть семейный бюджет. В личном чате можно открыть доску документов.'),
+        p('Локальные группы подходят для демонстрации в одном браузере. Комплект Telegram Mini App содержит веб-сборку, '
+          'сервер и виджет для чтения копии чата по ссылке. Запуск на рабочем боте предстоит подтвердить.'),
+        Spacer(1, 10),
+        note('Технические проверки описывают работу прототипа. Пользовательские и коммерческие показатели '
+             'предстоит собрать. Пороги предлагаем утвердить до исследования.'),
+    ],
+    [
+        p('Аудитория и задачи', 'HeadRU'),
+        p('Подбираем участников по недавней реальной задаче и по тому, как они решают её сейчас.'),
+        table([
+            ('Кого приглашаем', 'Задача участника', 'Что измеряем'),
+            ('Ведёт домашние расходы', '«Когда оплачу счета, хочу понять, сколько осталось на каждый день».',
+             '≥70% начавших задание с модератором вносят доход, платёж и покупку и объясняют сумму на день.'),
+            ('Готовит материалы в небольшой команде', '«Хочу собрать PDF, DOCX и заметки и получить выжимку с проверяемыми фактами».',
+             '≥60% вошедших получают пригодный результат за 24 часа. ≥80% существенных фактов в парном тесте верны и прослеживаются до источников.'),
+            ('Решает разные рабочие и бытовые задачи', '«Хочу выбрать подходящую роль и пример запроса, чтобы сделать первый черновик».',
+             '≥70% вошедших выбирают роль без подсказки и получают пригодный черновик за 24 часа. '
+             'Проверяем бриф для дизайна, продуктовые и бытовые задачи.'),
+        ], [126, 173, 200]),
+        h('Первый результат и возврат'),
+        p('Для документов и профильного помощника сравниваем одинаковые задачи с обычным чатом без заданной роли. '
+          'Цель по медианному времени до первого пригодного результата - снижение на ≥20% при сопоставимом качестве. '
+          'Учитываем долю успешных попыток в каждом варианте.'),
+        p('<b>A24</b> = участники с первым полезным результатом за 24 часа / вошедшие с полным окном. '
+          '<b>D7</b> = участники, продолжившие или повторившие задачу в другой день за неделю / участники с первым '
+          'полезным результатом и полным окном. Порог D7 ≥30% в каждой когорте.'),
+        h('Основание для выбора задач'),
+        p('В исследовании потребительских планов ChatGPT около трёх четвертей разговоров приходились '
+          'на практические советы, поиск информации и работу с текстом. '
+          + link('https://openai.com/index/how-people-are-using-chatgpt/', 'Исследование OpenAI'), 'SmallRU'),
+    ],
+    [
+        p('Интерфейс и площадки', 'HeadRU'),
+        table([
+            ('Сценарий', 'Что входит в прототип'),
+            ('Старт и история', 'Категории, поиск, избранное, примеры запросов и сохранённые чаты. Режим AI требует настроенного сервера. '
+             'Сессия после входа по коду действует 90 дней. Каталог, история, демочат и локальные комнаты доступны после установки офлайн-кеша.'),
+            ('Семейный бюджет', '«Семейный финансист» → «Семейный бюджет». В профиле сохраняются месячный доход, покупки и обязательные платежи. '
+             'Таблица показывает остаток и сумму на день.'),
+            ('Доска документов', 'Вкладка «Доска» сохраняет оригиналы в браузере. Текстовые PDF, DOCX и заметки дают фрагменты для редактируемого '
+             'запроса на выжимку, сравнение или извлечение данных. Для сканов доступен оригинал. OCR отсутствует.'),
+            ('Локальная группа', 'Приглашение и отзыв участия работают между профилями одного браузера. '
+             'Обмен сообщениями между устройствами требует будущей серверной синхронизации.'),
+        ], [132, 367]),
+        h('Публичный сайт и рабочее превью'),
+        p('GitHub Pages показывает лендинг и киты. Рабочие демочаты доступны владельцу в закрытом Sites-превью '
+          'после проверки ChatGPT и входа Agentik. В бренд-ките для двух вариантов логотипа доступны копирование SVG '
+          'и выгрузка PNG 1× и 2×. Палитра скачивается в JSON, исходные SVG и описание находятся в пресс-ките.'),
+        p(link('https://sergeybukharev.github.io/agentik/', 'GitHub Pages') + ' · '
+          + link('https://sergeybukharev.github.io/agentik/#/ui-kit', 'UI-кит') + ' · '
+          + link('https://sergeybukharev.github.io/agentik/#/brand-kit', 'Бренд-кит') + ' · '
+          + link('https://sergeybukharev.github.io/agentik/#/press-kit', 'Пресс-кит'), 'SmallRU'),
+        h('Что проверяем на мобильном'),
+        p('Нижняя навигация, стартовые запросы и список недавних чатов опираются на интерфейсные референсы. '
+          'На тестах проверяем ширину от 320 CSS px, экранную клавиатуру, черновик после ошибки, скелетоны и системное уменьшение движения.'),
+        p(link('https://mobbin.com/screens/26343f18-20a1-4140-8b6e-769ab72bde3f', 'Character AI · каталог') + ' · '
+          + link('https://mobbin.com/screens/ff123a05-48c8-438d-971e-357c1a18e028', 'Character AI · начало диалога') + ' · '
+          + link('https://mobbin.com/screens/fbd4427a-94db-4ed8-908c-6d015b246ac1', 'Meta AI · история'), 'SmallRU'),
+    ],
+    [
+        p('Передача чата в Telegram', 'HeadRU'),
+        p('Чтобы передать контекст, отправитель создаёт копию личного или группового чата и открывает официальный '
+          'выбор чата Telegram через t.me/share/url. Ссылка с параметром startapp запускает компактный Mini App и '
+          'показывает до 50 последних сообщений только для чтения. Изображения представлены отметками о вложении.'),
+        p('Ссылка действует 24 часа. Отправитель может отозвать её или выпустить новую. '
+          'Комплект содержит веб-сборку и Node API. Проверку на рабочем боте и в реальных клиентах Telegram предстоит провести.'),
+        h('Воронка пилота'),
+        p('После проверки Android, iOS и десктопа запланировать 20 пар, по одной основной ссылке на пару. '
+          'Открытие выбора чата измеряем отдельно. Доставку подтверждает получатель.'),
+        table([
+            ('Шаг', 'Числитель / знаменатель', 'Порог'),
+            ('Создана копия', 'Попытки с выпущенной ссылкой / попытки с открытым диалогом публикации', '≥80%'),
+            ('Открыт выбор чата', 'Ссылки с открытым выбором чата Telegram / выпущенные ссылки', '≥60%'),
+            ('Открыта получателем', 'Уникальные ссылки с загрузкой хотя бы у одного получателя за 24 часа / уникальные выпущенные ссылки с полным окном', '≥25%'),
+            ('Виджет загрузился', 'Успешные загрузки / первые открытия по действующим ссылкам в поддерживаемом клиенте', '≥90%'),
+            ('Получен контекст', 'Получатели, нашедшие заданный факт / получатели, открывшие копию в парном тесте', '≥70%'),
+        ], [124, 299, 76]),
+        h('Контроль доступа'),
+        p('В техническом тесте все отозванные и истёкшие ссылки должны стать недоступны при повторном открытии. '
+          'Аналитика использует псевдонимы попыток и статусы. Ссылки доступа, содержимое и данные авторизации в неё не передаются.'),
+        p(link('https://core.telegram.org/widgets/share', 'Telegram Sharing Button') + ' · '
+          + link('https://core.telegram.org/bots/webapps#direct-link-mini-apps', 'Telegram Mini Apps и compact mode'), 'SmallRU'),
+    ],
+    [
+        p('Порядок пилота и решения', 'HeadRU'),
+        p('Для приглашения в пилот используем публичную страницу и демонстрации одной задачи. '
+          'Профессиональные и тематические сообщества подходят для поиска участников с согласия модераторов. '
+          'Каналы помечаем отдельными ссылками и оцениваем по завершённым задачам и возврату.'),
+        table([
+            ('Неделя', 'Эксперимент'),
+            ('1 · Понять задачу', 'Запланировать 8-10 интервью о недавних задачах и 5-8 наблюдаемых мобильных сессий.'),
+            ('2 · Проверить сценарии', 'Исправить повторяющиеся ошибки. Провести парные сравнения на одинаковых источниках и задачах.'),
+            ('3 · Провести пилот', 'Набрать по 20 участников на направление. Проверить A24 и собрать данные на D7. '
+             'Подключить пилот Telegram после проверки бота и HTTPS-развёртывания.'),
+            ('4 · Выбрать фокус', 'Сопоставить возврат, качество и затраты на успешную задачу. Выбрать следующую версию сценария.'),
+        ], [131, 368]),
+        h('Free, PRO и будущие платежи'),
+        p('Free включает два пробных сообщения на аккаунт. Экран PRO открывается после второй принятой отправки. '
+          'Демо PRO выдаётся через серверную настройку. Реальный приём платежей пока не запущен.'),
+        p('Сравнить показ после второй отправки с контрольным показом после третьей. Цель - ≥10% добровольных заявок среди '
+          'увидевших раннее предложение. Падение доли продолживших работу допустимо до 5 п.п. '
+          'Знаменатель в обеих группах - участники со второй отправкой и полными семью днями после неё.'),
+        p('Для будущей продажи цифрового доступа в Telegram нужны Telegram Stars (XTR). '
+          + link('https://core.telegram.org/bots/payments-stars', 'Правила Telegram Stars'), 'SmallRU'),
+        h('Когда менять направление'),
+        p('Если бюджет даёт повтор, проверить отдельный вход к расчёту и расходам. Если доска ускоряет работу с источниками, '
+          'вынести загрузку документа в первый шаг. Каталог сохраняем широким при повторяемом результате в нескольких типах задач.'),
+        p('Сопутствующая модель юнит-экономики хранит сценарные допущения. '
+          'Решение о платном привлечении принимаем после данных о повторном использовании, стоимости запроса и интересе к PRO. '
+          'Спрос на межустройственную совместную работу проверяем отдельным пилотом.', 'SmallRU'),
+    ],
+]
+
+
+def footer(canvas, doc):
+    canvas.saveState()
+    canvas.setStrokeColor(RULE)
+    canvas.line(MARGIN, 43, PAGE_WIDTH - MARGIN, 43)
+    canvas.setFont('ArialRU', 8)
+    canvas.setFillColor(MUTED)
+    canvas.drawString(MARGIN, 28, 'agentik · План пилота · 26.11.2026')
+    canvas.drawRightString(PAGE_WIDTH - MARGIN, 28, f'{doc.page} / {len(pages)}')
+    canvas.restoreState()
+
+
+def build():
+    story = []
+    for page in pages:
+        if story:
+            story.append(PageBreak())
+        story.extend(page)
+
+    path = ROOT / 'docs/marketing-strategy.pdf'
+    doc = SimpleDocTemplate(
+        str(path), pagesize=(PAGE_WIDTH, PAGE_HEIGHT), leftMargin=MARGIN, rightMargin=MARGIN,
+        topMargin=40, bottomMargin=56, title='Agentik. Продуктовая и маркетинговая стратегия', author='Agentik',
+    )
+    doc.build(story, onFirstPage=footer, onLaterPages=footer)
+
+    reader = PdfReader(path)
+    assert len(reader.pages) == len(pages), f'Unexpected number of pages: {len(reader.pages)}'
+    assert all(len(page.extract_text()) > 300 for page in reader.pages)
+    print(f'PDF saved; {len(reader.pages)} pages with extractable text.')
+
+
+if __name__ == '__main__':
+    build()

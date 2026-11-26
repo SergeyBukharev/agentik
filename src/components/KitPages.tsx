@@ -5,6 +5,7 @@ import paletteDownload from '../../design-system/colors.json?url';
 import {kitPages, kitPaths, type KitPage} from '../kits';
 import {useUi} from '../language';
 import {useTheme} from '../useTheme';
+import {BrandLogo} from './BrandLogo';
 import {UiKitShowcase} from './UiKitShowcase';
 import './kit-pages.css';
 
@@ -49,8 +50,8 @@ function BrandKit({dark}: {dark: boolean}) {
     <section className="kit-section" aria-labelledby="kit-brand-logo">
       <h2 id="kit-brand-logo">{t('Логотип','Logo')}</h2>
       <div className="kit-logo-grid">
-        <figure className="kit-logo kit-logo--light"><img src={logoLight} alt="agentik" width="180" height="48"/><figcaption>{t('На светлом фоне','Light background')}</figcaption></figure>
-        <figure className="kit-logo kit-logo--dark"><img src={logoDark} alt="agentik" width="180" height="48"/><figcaption>{t('На тёмном фоне','Dark background')}</figcaption></figure>
+        <BrandLogo background="light" src={logoLight}/>
+        <BrandLogo background="dark" src={logoDark}/>
       </div>
       <ul className="kit-rules">
         <li>{t('Пишите название строчными буквами без точки в логотипе.','Set the wordmark in lowercase without punctuation.')}</li>

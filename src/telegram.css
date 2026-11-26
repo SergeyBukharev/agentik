@@ -1,0 +1,33 @@
+:root[data-telegram] {
+  --agentik-tg-safe-top: max(env(safe-area-inset-top), var(--tg-safe-area-inset-top, 0px), var(--tg-content-safe-area-inset-top, 0px));
+  --agentik-tg-safe-right: max(env(safe-area-inset-right), var(--tg-safe-area-inset-right, 0px), var(--tg-content-safe-area-inset-right, 0px));
+  --agentik-tg-safe-bottom: max(env(safe-area-inset-bottom), var(--tg-safe-area-inset-bottom, 0px), var(--tg-content-safe-area-inset-bottom, 0px));
+  --agentik-tg-safe-left: max(env(safe-area-inset-left), var(--tg-safe-area-inset-left, 0px), var(--tg-content-safe-area-inset-left, 0px));
+}
+
+:root[data-telegram='app'] {
+  --persistent-brand-top: max(10px, var(--agentik-tg-safe-top));
+  --persistent-brand-inline: max(13px, var(--agentik-tg-safe-left), var(--agentik-tg-safe-right));
+}
+
+@media (max-width: 767px) {
+  :root[data-telegram='app'] .topbar {
+    min-block-size: calc(var(--persistent-brand-top) + var(--persistent-brand-height) + 6px);
+    padding-block-start: var(--agentik-tg-safe-top);
+  }
+  :root[data-telegram='app'] .main {
+    padding-inline: max(16px, var(--agentik-tg-safe-left)) max(16px, var(--agentik-tg-safe-right));
+    padding-block-end: calc(91px + var(--agentik-tg-safe-bottom));
+  }
+  :root[data-telegram='app'] .bottom-nav {
+    padding-inline: max(12px, var(--agentik-tg-safe-left)) max(12px, var(--agentik-tg-safe-right));
+    padding-block-end: max(8px, var(--agentik-tg-safe-bottom));
+  }
+  :root[data-telegram='app'] .composer-stack {
+    inset-block-end: calc(72px + var(--agentik-tg-safe-bottom));
+  }
+  :root[data-telegram='app'] .modal {
+    max-block-size: calc(100dvh - var(--agentik-tg-safe-top) - 20px);
+    padding-block-end: max(26px, var(--agentik-tg-safe-bottom));
+  }
+}

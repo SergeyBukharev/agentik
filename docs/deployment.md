@@ -46,3 +46,7 @@ Service worker обновляется при следующем открытии
 После первого чата на главной открывается каталог. `VITE_SERVICE_ANNOUNCEMENTS` принимает JSON-массив объявлений с `id`, `kind`, `title`, `description` и необязательными `titleEn` и `descriptionEn`. Значение `important` в `kind` выводит сообщение перед `promotion`. Пустой список скрывает слайдер.
 
 После изменения палитры или общего маскота обновите SVG командой `node --import tsx scripts/render-illustrations.ts` и CSS-токены командой `node scripts/color-tokens.mjs`.
+
+## Telegram Mini App
+
+Выполните `node scripts/package-telegram-mini-app.mjs`, чтобы собрать архив с Node-сервером, интерфейсом Mini App, отдельным виджетом и документацией. Mini App и API работают на одном HTTPS-домене. Связь с ботом, переменные окружения и проверка ссылки описаны в [инструкции Telegram](telegram-mini-app.md).

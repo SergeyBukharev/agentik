@@ -33,6 +33,7 @@ import type {Point} from './motion/shader';
 import {useAccess, useOnline} from './useAccess';
 import {useRoute, type Route} from './routes';
 import {useTheme} from './useTheme';
+import {getTelegramWebApp} from './telegram-shell';
 
 const Profile = lazy(() => import('./components/Profile').then(module => ({default: module.Profile})));
 const Rooms = lazy(() => import('./components/Rooms').then(module => ({default: module.Rooms})));
@@ -52,7 +53,10 @@ export default function App({requestReply = replyTo}: {requestReply?: typeof rep
   useEffect(() => {
     if (session) return;
     const preference = window.matchMedia?.('(prefers-color-scheme: dark)');
-    const apply = () => {document.documentElement.dataset.theme = preference?.matches ? 'dark' : 'light';};
+    const apply = () => {
+      const telegram = import.meta.env.VITE_TELEGRAM_MINI_APP === 'true' ? getTelegramWebApp() : undefined;
+      document.documentElement.dataset.theme = telegram?.colorScheme ?? (preference?.matches ? 'dark' : 'light');
+    };
     apply();
     preference?.addEventListener('change', apply);
     return () => preference?.removeEventListener('change', apply);
@@ -141,7 +145,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
   const [mode, setMode] = useState<'demo' | 'live'>('demo');
   const [model, setModel] = useState<ChatModel>('auto');
   const [validation,setValidation]=useState('');
-  const {dark, toggleTheme} = useTheme(false);
+  const {dark, toggleTheme} = useTheme(() => import.meta.env.VITE_TELEGRAM_MINI_APP === 'true' && getTelegramWebApp()?.colorScheme === 'dark');
   const [drafts] = useState(createChatDrafts);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<Record<string, boolean>>({});
@@ -375,10 +379,11 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
    ) : page==='boards' ? <Suspense fallback={<ScreenSkeleton/>}><BoardIndex profileId={profile.id}/></Suspense>
    : isChat?assistant?<Suspense fallback={<ScreenSkeleton/>}><PrivateChat assistant={assistant} conversation={conversation} profile={profile}
     messagePrice={wallet.price} mode={mode} online={online} busy={busy} drafts={drafts} error={error}
+    telegramShareToken={session.token}
     onSend={submitChat} model={model} onModel={setModel}/></Suspense>
     :<PageState kind="conversation" href="#/history"/>:
    page==='history'?<section><p className="eyebrow">{t('ПРОДОЛЖИМ С ТОГО ЖЕ МЕСТА','PICK UP WHERE YOU LEFT OFF')}</p><h1 className="section-title">{t('Ваши разговоры','Your chats')}</h1><div className="chat-tabs"><a className="chat-tabs__link chat-tabs__link--active" href="#/history">{t('Личные','Private')}</a><a className="chat-tabs__link" onPointerEnter={()=>prefetchScreen('rooms')} onFocus={()=>prefetchScreen('rooms')} href="#/rooms"><Users size={17}/>{t('Общие комнаты','Groups')}</a><a className="chat-tabs__link" href="#/boards"><FolderOpen size={17}/>{t('Доски','Boards')}</a></div><p className="section-description">{t('Идеи и решения, к которым можно вернуться. Сохранено в этом браузере.','Your saved chats in this browser.')}</p>{state.conversations.length?<div className="history-list">{[...state.conversations].sort((a,b)=>b.updatedAt-a.updatedAt).map(c=>{const a=all.find(a=>a.id===c.assistantId);return <a className="history-item" key={c.id} onFocus={prefetchChat} onPointerEnter={prefetchChat} href={`#/chat/${c.id}`}><span className={`avatar avatar--${a?.color??'lime'}`}><AgentIcon name={a?.icon??'Sparkles'}/></span><span className="history-item__text"><strong>{c.title}</strong><span>{a?.name} · {c.messages.length} {t('сообщений','messages')}</span></span><span className="history-item__date">{new Date(c.updatedAt).toLocaleDateString(language,{day:'numeric',month:'short'})}</span><ChevronRight size={17}/></a>;})}</div>:<Empty title={t('Здесь начнётся ваша история','Your history starts here')} text={t('Первый разговор появится здесь, когда вы отправите сообщение помощнику.','Send your first message to start your history.')}/>}</section>:
-   page==='rooms'||page==='join'?<Suspense fallback={<ScreenSkeleton/>}><Rooms key={`${page}/${id??''}/${profile.id}`} roomId={page==='rooms'?id:undefined} joinToken={page==='join'?id:undefined} profile={profile} onSend={showFirstSend} onCreate={()=>setState(current=>({...current, startedChat:true}))} language={language} messagePrice={wallet.price} billMessage={chargeMessage}/></Suspense>:['assistants','characters','favorites',undefined].includes(page)?<>
+   page==='rooms'||page==='join'?<Suspense fallback={<ScreenSkeleton/>}><Rooms key={`${page}/${id??''}/${profile.id}`} roomId={page==='rooms'?id:undefined} joinToken={page==='join'?id:undefined} profile={profile} onSend={showFirstSend} onCreate={()=>setState(current=>({...current, startedChat:true}))} language={language} messagePrice={wallet.price} billMessage={chargeMessage} telegramShareToken={session.token}/></Suspense>:['assistants','characters','favorites',undefined].includes(page)?<>
    {showHero&&<LandingHero signedIn/>}
    {notices.length > 0 && <ServiceNotices items={notices}/>}
    <section className={`catalog${home||page==='assistants'?' catalog--discovery':''}`}><div className="mobile-intro"><p>Рады видеть вас, {profile.name==='Моё пространство'?'друг':profile.name}</p><h1>{t('С чем помочь?','How can we help?')}</h1><button className="icon-button" aria-label={t('Создать своего помощника','Create your own assistant')} onClick={()=>{setValidation('');setModal('create');}}><Plus size={23}/></button></div><div className="mobile-switch"><a className={page!=='characters'?'mobile-switch__link mobile-switch__link--active':'mobile-switch__link'} href="#/assistants">{t('Помощники','Assistants')}</a><a className={page==='characters'?'mobile-switch__link mobile-switch__link--active':'mobile-switch__link'} href="#/characters">{t('Персонажи','Characters')}</a></div><div className="section-heading"><div>{!home&&<p className="eyebrow">{page==='characters'?t('ИСТОРИИ И НОВЫЕ ЗНАКОМСТВА','STORIES AND CHARACTERS'):page==='favorites'?t('ВАША ЛИЧНАЯ КОЛЛЕКЦИЯ','YOUR COLLECTION'):t('НА КАЖДЫЙ СЛУЧАЙ','EVERYDAY HELP')}</p>}<TitleTag className={home?'section-title section-title--secondary':'section-title'}>{title}</TitleTag><p className="section-description">{page==='characters'?t('Вымышленные герои с характером. Для общения, игр и воображения.','Fictional characters for conversations and stories.'):page==='favorites'?t('Любимые помощники и персонажи в одном месте.','Your favorite assistants and characters in one place.'):t('Немного поддержки — и всё получится.','Find an assistant for the task at hand.')}</p></div><label className="search"><Search size={19}/><span className="sr-only">{t('Поиск помощника','Search assistants')}</span><input className="search__input" type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('Кто вам нужен сегодня?','Who do you need today?')}/>{query&&<button className="search__clear" onClick={()=>setQuery('')} aria-label={t('Очистить поиск','Clear search')}><X size={16}/></button>}</label></div>

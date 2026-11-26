@@ -4,7 +4,7 @@ import {Modal} from './Modal';
 
 export function Paywall({active,exhausted,onClose,onContinue}: {active?:boolean;exhausted:boolean;onClose: () => void;onContinue:()=>void}) {
   const {t} = useUi();
-  const checkout = import.meta.env.VITE_PRO_CHECKOUT_URL || '';
+  const checkout = import.meta.env.VITE_TELEGRAM_MINI_APP === 'true' ? '' : import.meta.env.VITE_PRO_CHECKOUT_URL || '';
   return <Modal title={active?'Agentik PRO':t('Продолжайте с Agentik PRO','Keep chatting with Agentik PRO')}
     description={active?t('Ваш PRO активен.','Your PRO plan is active.'):exhausted
       ? t('Два пробных сообщения отправлены. Подключите PRO, чтобы продолжить отправку.','Your two trial messages have been sent. Get PRO to keep sending.')

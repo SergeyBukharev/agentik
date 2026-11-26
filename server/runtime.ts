@@ -3,6 +3,7 @@ import {resolve} from 'node:path';
 import type {IncomingMessage, ServerResponse} from 'node:http';
 import {Readable} from 'node:stream';
 import {createHandler} from './app.ts';
+import type {TelegramShareHandler} from './telegram-shares.ts';
 
 type Environment = Record<string, string | undefined>;
 
@@ -16,7 +17,7 @@ function readCodeFile(path: string) {
   }
 }
 
-export function createRuntime(env: Environment, loopbackPort?: number) {
+export function createRuntime(env: Environment, loopbackPort?: number, telegramShares?: TelegramShareHandler) {
   const origins = (env.ALLOWED_ORIGIN ?? '').split(',').map(value => value.trim()).filter(Boolean);
   const aliceFolder = env.AI_ALICE_FOLDER_ID?.trim();
   if (loopbackPort) {
@@ -24,6 +25,7 @@ export function createRuntime(env: Environment, loopbackPort?: number) {
   }
   return createHandler({
     origins,
+    telegramShares,
     apiKey: env.AI_API_KEY,
     apiBase: env.AI_API_BASE,
     model: env.AI_MODEL,

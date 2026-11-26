@@ -10,5 +10,6 @@ artifacts/qa/
 Agentik-local.zip
 codes-for-pro.txt
 .private/
+data/telegram-shares/
 playwright-report/
 test-results/
