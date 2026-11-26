@@ -7,9 +7,10 @@ import type {Plugin} from 'vite';
 const publicAssets = ['capture-guard.js', 'favicon.svg', 'brand/agentik-wordmark-light.svg', 'brand/agentik-wordmark-dark.svg',
   'illustrations/ideas.svg', 'illustrations/history.svg', 'illustrations/search.svg', 'illustrations/together.svg'];
 
-export function offlinePlugin(): Plugin {
+export function offlinePlugin({cacheScope = 'agentik', publicFiles = publicAssets}: {cacheScope?: string; publicFiles?: string[]} = {}): Plugin {
   let base = '/agentik/';
   let publicDir = resolve('public');
+  const prefix = cacheScope + '-shell-';
   return {
     name: 'agentik-offline',
     enforce: 'post',
@@ -22,16 +23,16 @@ export function offlinePlugin(): Plugin {
       const optional = files.filter(path => /(?:^|\/)pdf(?:[.-]|$)/i.test(path));
       const shellFiles = files.filter(path => !optional.includes(path));
       const digest = createHash('sha256').update(base).update(files.join('|'));
-      for (const path of publicAssets) digest.update(readFileSync(resolve(publicDir, path)));
+      for (const path of publicFiles) digest.update(readFileSync(resolve(publicDir, path)));
       for (const entry of Object.values(bundle)) {
         if (entry.type === 'asset') digest.update(entry.source);
       }
-      const source = `const CACHE='agentik-shell-VERSION';
+      const source = `const CACHE='${prefix}VERSION';
 const BASE=${JSON.stringify(base)};
-const FILES=${JSON.stringify(['./', ...shellFiles.map(path => './' + path), ...publicAssets.map(path => './' + path)])};
+const FILES=${JSON.stringify(['./', ...shellFiles.map(path => './' + path), ...publicFiles.map(path => './' + path)])};
 const OPTIONAL=${JSON.stringify(optional.map(path => './' + path))};
 const ASSETS=new Set([...FILES.slice(1),...OPTIONAL].map(path=>BASE+path.slice(2)));
-const previousCaches=async()=>(await caches.keys()).filter(key=>key.startsWith('agentik-shell-')&&key!==CACHE);
+const previousCaches=async()=>(await caches.keys()).filter(key=>key.startsWith('${prefix}')&&key!==CACHE);
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const existed=await caches.has(CACHE);
   const cache=await caches.open(CACHE);
@@ -45,7 +46,7 @@ self.addEventListener('install',event=>event.waitUntil((async()=>{
 })()));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
   // A tab may still be running the preceding build and need its lazy chunks.
-  const state=await caches.open('agentik-worker-state');
+  const state=await caches.open('${cacheScope}-worker-state');
   const active=await (await state.match(self.location.href))?.text();
   const older=await previousCaches();
   const keep=older.includes(active)?active:older.at(-1);
@@ -92,7 +93,7 @@ self.addEventListener('fetch',event=>{
   }));
 });`;
       const version = digest.update(source).digest('hex').slice(0, 12);
-      this.emitFile({type: 'asset', fileName: 'sw.js', source: source.replace('agentik-shell-VERSION', 'agentik-shell-' + version)});
+      this.emitFile({type: 'asset', fileName: 'sw.js', source: source.replace(prefix + 'VERSION', prefix + version)});
     },
     writeBundle(options) {
       if (options.dir) return copyFile(resolve(options.dir, 'index.html'), resolve(options.dir, '404.html'));
