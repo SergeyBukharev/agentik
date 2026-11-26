@@ -4,7 +4,7 @@ import {copyFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import type {Plugin} from 'vite';
 
-const publicAssets = ['favicon.svg', 'illustrations/ideas.svg', 'illustrations/history.svg', 'illustrations/search.svg', 'illustrations/together.svg'];
+const publicAssets = ['capture-guard.js', 'favicon.svg', 'illustrations/ideas.svg', 'illustrations/history.svg', 'illustrations/search.svg', 'illustrations/together.svg'];
 
 export function offlinePlugin(): Plugin {
   let base = '/agentik/';

@@ -41,7 +41,7 @@ export default defineConfig({
     },
     {
       name: 'webkit-mobile',
-      testMatch: ['**/mobile.spec.ts', '**/select.spec.ts'],
+      testMatch: ['**/mobile.spec.ts', '**/select.spec.ts', '**/capture-guard.spec.ts'],
       use: {...devices['iPhone SE']},
     },
   ],

@@ -12,7 +12,15 @@ export default defineConfig(({mode}) => {
   let codeSource = codes;
   try { codeSource = realpathSync(codes); } catch { /* The default missing file leaves login disabled. */ }
   return {
-    plugins: [react(), offlinePlugin(), localApiPlugin(env)],
+    plugins: [react(), {
+      name: 'agentik-script-policy',
+      apply: 'build',
+      transformIndexHtml: () => [{
+        tag: 'meta',
+        attrs: {'http-equiv': 'Content-Security-Policy', content: "script-src 'self'; object-src 'none'; base-uri 'self'"},
+        injectTo: 'head-prepend',
+      }],
+    }, offlinePlugin(), localApiPlugin(env)],
     base: '/agentik/',
     server: {
       strictPort: true,

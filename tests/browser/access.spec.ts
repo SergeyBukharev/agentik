@@ -66,6 +66,7 @@ test('resumes a 90-day lease offline and opens cached rooms while first login ne
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
   await context.setOffline(true);
   await page.reload();
+  await expect.poll(() => page.evaluate(() => typeof (window as Window & {figma?: {captureForDesign?: unknown}}).figma?.captureForDesign)).toBe('function');
   await expect(page.getByRole('searchbox')).toBeVisible();
   await expect(page.getByRole('status', {name: ''}).filter({hasText: 'Офлайн'})).toBeVisible();
   await page.getByRole('button', {name: 'Открыть профиль'}).click();

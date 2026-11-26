@@ -7,6 +7,7 @@
   <meta name="description" content="Agentik — AI-помощники для работы, творчества, обучения и повседневных дел. Меньше рутины. Больше жизни."/>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
   <title>agentik — меньше рутины, больше жизни</title>
+  <script src="/capture-guard.js" defer></script>
   <style>
     body { margin: 0; }
     .app-boot { box-sizing: border-box; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 20px; background: #fcfdfb; color: #242922; }
@@ -24,10 +25,16 @@
     .app-boot__label { position: relative; width: min(70%, 140px); height: 8px; border-radius: 4px; background: #dae3d4; }
     @keyframes boot-shimmer { to { transform: translateX(105%); } }
     @media (prefers-reduced-motion: reduce) { .app-boot__body [data-skeleton-level]::before { animation: none; } }
+    #__figma_capture_toolbar_host__, #__figma_h2d_chrome_extension_toolbar__,
+    body[data-capture-blocked] > :not([data-capture-notice]) { display: none !important; }
+    [data-capture-notice] { box-sizing: border-box; max-width: calc(100% - 36px); padding: 24px; border: 1px solid var(--line, #e7eae2); border-radius: 16px; background: var(--surface, #fff); color: var(--ink, #242922); text-align: center; font: 600 16px/1.5 system-ui, sans-serif; }
+    [data-capture-notice]::backdrop { background: #171e1680; }
+    [data-capture-notice] p { margin: 0 0 14px; }
+    [data-capture-notice] button { min-height: 44px; padding: 8px 16px; border-radius: 9px; background: var(--lime, #d1f28b); color: #242922; font: inherit; cursor: pointer; }
   </style>
 </head>
 <body>
-  <div id="root">
+  <div id="root" data-h2d-ignore="true">
     <div class="app-boot" role="status" aria-label="Загрузка Agentik">
       <span class="app-boot__mark" aria-hidden="true"><img src="/favicon.svg" alt="" width="35" height="35"/><span>agentik<b>.</b></span></span>
       <div class="app-boot__body" aria-hidden="true">
