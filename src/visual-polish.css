@@ -149,13 +149,13 @@
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    background: linear-gradient(6deg, transparent 25%, #f7ffe327 53%, #f7ffe351 63%, transparent 85%);
-    transform: translateY(108%);
-    transition: transform .62s cubic-bezier(.22, .7, .2, 1);
+    background: linear-gradient(96deg, transparent 25%, #f7ffe327 53%, #f7ffe351 63%, transparent 85%);
+    transform: translateX(-108%);
   }
 
   :is(.button--primary, .code-gate__submit, .bottom-nav__create, .composer__send):not(:disabled):hover::after {
-    transform: translateY(-106%);
+    transform: translateX(106%);
+    transition: transform .62s cubic-bezier(.22, .7, .2, 1);
   }
 }
 

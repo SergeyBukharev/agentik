@@ -1,7 +1,8 @@
 import {lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent} from 'react';
 import {Coins, LayoutGrid, Smile, Star, History, Users, Plus, Search, Sun, Moon, X, SlidersHorizontal, MessageCircle, ChevronRight, ChevronDown, Check, House, UserRound, WifiOff, FolderOpen} from 'lucide-react';
 import {catalog, categories, filterAssistants, type Assistant} from './catalog';
-import type {Conversation} from './state';
+import {lastChatMessageIndex, type Conversation} from './state';
+import {hasSavedBudget} from './family-budget';
 import {readLocalRooms} from './local-rooms';
 import {replyTo} from './services';
 import {useProfileState} from './useProfileState';
@@ -131,6 +132,11 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
 }) {
   const {language,t,setLanguage}=useUi();
   const {state, saved, update: setState} = useProfileState(profile.id, session.accountId);
+  const [hasLegacyBudget] = useState(() => {
+    try {return hasSavedBudget(localStorage, profile.id);}
+    catch {return false;}
+  });
+  const hasBudget = state.familyBudgetCreated === true || hasLegacyBudget;
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('Все');
   const [localModal, setModal] = useState<'create' | 'profile' | 'pro' | null>(null);
@@ -240,6 +246,34 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
     setPulse({x: rect.left + rect.width / 2, y: rect.top + rect.height / 2});
   }
 
+  function createBudget() {
+    if (assistant?.id !== 'budget' || location.hash !== '#' + route.path || controllers.current.has(chatKey)) return;
+    if (conversation?.messages.some(message => message.artifact === 'family-budget')) return conversation.id;
+
+    const title = t('Таблица семейного бюджета', 'Family budget table');
+    const target = conversation ?? {id:crypto.randomUUID(), assistantId:assistant.id, title, messages:[], updatedAt:Date.now()};
+    setState(current => {
+      const latest = current.conversations.find(item => item.id === target.id) ?? target;
+      if (latest.messages.some(message => message.artifact === 'family-budget')) return current;
+      const next: Conversation = {
+        ...latest,
+        updatedAt:Date.now(),
+        messages:[...latest.messages, {role:'assistant', content:title, artifact:'family-budget'}],
+      };
+      return {...current, startedChat:true, familyBudgetCreated:true,
+        conversations:[next, ...current.conversations.filter(item => item.id !== target.id)]};
+    });
+
+    if (!conversation) {
+      drafts.set(target.id, drafts.get(chatKey));
+      drafts.setAttachment(target.id, drafts.getAttachment(chatKey));
+      drafts.set(chatKey, '');
+      drafts.setAttachment(chatKey);
+      location.hash = `#/chat/${target.id}`;
+    }
+    return target.id;
+  }
+
   function send(retry: boolean, anchor: HTMLElement | null, images: ChatImage[]) {
     if (!assistant || controllers.current.has(chatKey) || (mode === 'live' && !online)) return false;
     const input = drafts.get(chatKey).trim();
@@ -251,24 +285,26 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
     let turn: {id: string; prompt: string} | undefined;
 
     const updateConversation = (current: Conversation): Conversation => {
-      const last = current.messages.at(-1);
-      const attempted = conversation?.messages.at(-1);
+      const index = retry ? lastChatMessageIndex(current.messages) : current.messages.length;
+      const last = current.messages[index];
+      const attempted = conversation?.messages[lastChatMessageIndex(conversation.messages)];
       if (retry && (last?.role !== 'user' || last.turnId !== attempted?.turnId
         || last.content !== attempted?.content || last.images?.[0]?.id !== attempted?.images?.[0]?.id
         || last.document?.id !== attempted?.document?.id)) return current;
       turn = {id: (retry ? last?.turnId : undefined) ?? crypto.randomUUID(), prompt: retry ? last!.content : input};
-      const messages = retry ? current.messages.slice(0, -1) : current.messages;
+      const messages = current.messages.slice();
       const attachments = retry ? last?.images : images;
       const document = retry ? last?.document : draftDocument;
-      return {...current, messages: [...messages, {role:'user',content:turn.prompt,turnId:turn.id,
-        ...(attachments?.length ? {images:attachments} : {}), ...(document ? {document} : {})}], updatedAt: Date.now()};
+      messages.splice(index, retry ? 1 : 0, {role:'user',content:turn.prompt,turnId:turn.id,
+        ...(attachments?.length ? {images:attachments} : {}), ...(document ? {document} : {})});
+      return {...current, messages, updatedAt:Date.now()};
     };
 
     let requestMessages: Conversation['messages'] = [];
     setState(current => {
       const latest = current.conversations.find(item => item.id === id) ?? target;
       const next = updateConversation(latest);
-      requestMessages = next.messages;
+      requestMessages = next.messages.filter(message => !message.artifact);
       return turn ? {...current, startedChat: true, conversations: [next, ...current.conversations.filter(item => item.id !== id)]} : current;
     });
     if (!turn) return false;
@@ -391,15 +427,15 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
       <h1 className="section-title">{assistant.name}</h1>
       <ChatBoardTabs assistantId={assistant.id} conversationId={boardChat?.id} active="board"/>
       <Suspense fallback={<ScreenSkeleton/>}>
-        <ChatBoard key={profile.id+'/'+assistant.id} profileId={profile.id} boardKey={assistant.id}
+        <ChatBoard key={profile.id+'/'+assistant.id} profileId={profile.id} boardKey={assistant.id} hasBudget={hasBudget}
           title={assistant.name} onUseText={takeBoardNotes} onUseAttachment={takeBoardAttachment}/>
       </Suspense>
     </section> : <PageState kind="conversation" href="#/boards"/>
-   ) : page==='boards' ? <Suspense fallback={<ScreenSkeleton/>}><BoardIndex profileId={profile.id}/></Suspense>
+   ) : page==='boards' ? <Suspense fallback={<ScreenSkeleton/>}><BoardIndex profileId={profile.id} hasBudget={hasBudget}/></Suspense>
    : isChat?assistant?<Suspense fallback={<ScreenSkeleton/>}><PrivateChat assistant={assistant} conversation={conversation} profile={profile}
     messagePrice={wallet.price} mode={mode} online={online} busy={busy} drafts={drafts} error={error}
     telegramShareToken={session.token}
-    onSend={submitChat} model={model} onModel={setModel}/></Suspense>
+    onSend={submitChat} onCreateBudget={assistant.id === 'budget' ? createBudget : undefined} model={model} onModel={setModel}/></Suspense>
     :<PageState kind="conversation" href="#/history"/>:
    page==='history'?<section><p className="eyebrow">{t('ПРОДОЛЖИМ С ТОГО ЖЕ МЕСТА','PICK UP WHERE YOU LEFT OFF')}</p><h1 className="section-title">{t('Ваши разговоры','Your chats')}</h1><div className="chat-tabs"><a className="chat-tabs__link chat-tabs__link--active" href="#/history">{t('Личные','Private')}</a><a className="chat-tabs__link" onPointerEnter={()=>prefetchScreen('rooms')} onFocus={()=>prefetchScreen('rooms')} href="#/rooms"><Users size={17}/>{t('Общие комнаты','Groups')}</a><a className="chat-tabs__link" href="#/boards"><FolderOpen size={17}/>{t('Доски','Boards')}</a></div><p className="section-description">{t('Идеи и решения, к которым можно вернуться. Сохранено в этом браузере.','Your saved chats in this browser.')}</p>{state.conversations.length?<div className="history-list">{[...state.conversations].sort((a,b)=>b.updatedAt-a.updatedAt).map(c=>{const a=all.find(a=>a.id===c.assistantId);return <a className="history-item" key={c.id} onFocus={prefetchChat} onPointerEnter={prefetchChat} href={`#/chat/${c.id}`}><span className={`avatar avatar--${a?.color??'lime'}`}><AgentIcon name={a?.icon??'Sparkles'}/></span><span className="history-item__text"><strong>{c.title}</strong><span>{a?.name} · {c.messages.length} {t('сообщений','messages')}</span></span><span className="history-item__date">{new Date(c.updatedAt).toLocaleDateString(language,{day:'numeric',month:'short'})}</span><ChevronRight size={17}/></a>;})}</div>:<Empty title={t('Здесь начнётся ваша история','Your history starts here')} text={t('Первый разговор появится здесь, когда вы отправите сообщение помощнику.','Send your first message to start your history.')}/>}</section>:
    page==='rooms'||page==='join'?<Suspense fallback={<ScreenSkeleton/>}><Rooms key={`${page}/${id??''}/${profile.id}`} roomId={page==='rooms'?id:undefined} joinToken={page==='join'?id:undefined} profile={profile} onSend={showFirstSend} onCreate={()=>setState(current=>({...current, startedChat:true}))} language={language} messagePrice={wallet.price} billMessage={chargeMessage} telegramShareToken={session.token}

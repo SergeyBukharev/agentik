@@ -11,19 +11,16 @@ export function FamilyBudget({profileId}: {profileId: string}) {
   const [year, number] = month.split('-').map(Number);
   const label = new Intl.DateTimeFormat(language, {month:'long', year:'numeric'}).format(new Date(year, number - 1, 1));
 
-  return <section className="family-budget" aria-labelledby="family-budget-title">
-    <div className="family-budget__heading">
-      <h2 id="family-budget-title">{t('Семейный бюджет', 'Family budget')}</h2>
-      <div className="family-budget__month" aria-label={t('Месяц бюджета', 'Budget month')}>
-        <button type="button" className="icon-button" aria-label={t('Предыдущий месяц', 'Previous month')}
-          onClick={() => setMonth(monthKey(new Date(year, number - 2, 1)))}><ChevronLeft size={18} aria-hidden="true"/></button>
-        <span>{label}</span>
-        <button type="button" className="icon-button" aria-label={t('Следующий месяц', 'Next month')}
-          onClick={() => setMonth(monthKey(new Date(year, number, 1)))}><ChevronRight size={18} aria-hidden="true"/></button>
-      </div>
+  return <div className="family-budget">
+    <div className="family-budget__month" role="group" aria-label={t('Месяц бюджета', 'Budget month')}>
+      <button type="button" className="icon-button" aria-label={t('Предыдущий месяц', 'Previous month')}
+        onClick={() => setMonth(monthKey(new Date(year, number - 2, 1)))}><ChevronLeft size={18} aria-hidden="true"/></button>
+      <span>{label}</span>
+      <button type="button" className="icon-button" aria-label={t('Следующий месяц', 'Next month')}
+        onClick={() => setMonth(monthKey(new Date(year, number, 1)))}><ChevronRight size={18} aria-hidden="true"/></button>
     </div>
     <BudgetMonth key={month} month={month} profileId={profileId}/>
-  </section>;
+  </div>;
 }
 
 function BudgetMonth({month, profileId}: {month: string; profileId: string}) {

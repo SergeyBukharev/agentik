@@ -2,10 +2,18 @@ import {isChatImage, type ChatImage} from './chat-media';
 import {isChatDocument, type ChatDocument} from './chat-contract';
 import type { Assistant } from './catalog';
 import {SESSION_MS,listProfiles,saveProfile} from './session';
-export type Message = {role:'user'|'assistant'; content:string; turnId?:string; images?:ChatImage[]; document?:ChatDocument};
+export type Message = {role:'user'|'assistant'; content:string; turnId?:string; images?:ChatImage[]; document?:ChatDocument; artifact?:'family-budget'};
 export type Conversation = {id:string; assistantId:string; title:string; updatedAt:number; messages:Message[]};
-export type AppState = {version:1;favorites:string[];custom:Assistant[];conversations:Conversation[];startedChat?:true};
+export type AppState = {version:1;favorites:string[];custom:Assistant[];conversations:Conversation[];startedChat?:true;familyBudgetCreated?:true};
 export const emptyState = ():AppState => ({version:1,favorites:[],custom:[],conversations:[]});
+
+export function lastChatMessageIndex(messages: readonly Message[]): number {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    if (!messages[index].artifact) return index;
+  }
+  return -1;
+}
+
 function isAssistant(a:unknown):a is Assistant {
   if(!a || typeof a!=='object')return false;
   const x=a as Assistant;
@@ -16,7 +24,8 @@ function isConversation(c:unknown):c is Conversation {
   const x=c as Conversation;
   return typeof x.id==='string'&&typeof x.assistantId==='string'&&typeof x.title==='string'&&Number.isFinite(x.updatedAt)&&Array.isArray(x.messages)&&x.messages.every(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string'
     &&(m.images===undefined||(Array.isArray(m.images)&&m.images.length<=1&&m.images.every(isChatImage)))
-    &&(m.document===undefined||(m.role==='user'&&isChatDocument(m.document))));
+    &&(m.document===undefined||(m.role==='user'&&isChatDocument(m.document)))
+    &&(m.artifact===undefined||(m.role==='assistant'&&x.assistantId==='budget'&&m.artifact==='family-budget')));
 }
 export function readState(storage:Pick<Storage,'getItem'>,profileId?:string,now=Date.now()):{state:AppState;status:'ok'|'missing'|'corrupt'|'unavailable'} {
   let raw:string|null;
@@ -29,6 +38,7 @@ export function readState(storage:Pick<Storage,'getItem'>,profileId?:string,now=
     if(profileId&&s.expiresAt<=now)return{state:emptyState(),status:'missing'};
     const state:AppState={version:1,favorites:Array.isArray(s.favorites)?s.favorites.filter((x:unknown)=>typeof x==='string'):[],custom:Array.isArray(s.custom)?s.custom.filter(isAssistant):[],conversations:Array.isArray(s.conversations)?s.conversations.filter(isConversation):[]};
     if(s.startedChat===true) state.startedChat=true;
+    if(s.familyBudgetCreated===true) state.familyBudgetCreated=true;
     const valid=['favorites','custom','conversations'].every(k=>Array.isArray(s[k])&&s[k].length===state[k as 'favorites'|'custom'|'conversations'].length);
     return{state,status:valid?'ok':'corrupt'};
   } catch {return{state:emptyState(),status:'corrupt'};}

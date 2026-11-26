@@ -5,7 +5,7 @@ import type {ChatDraftAttachment} from '../chat-drafts';
 import {CHAT_MODELS, prepareChatImage, type ChatImage, type ChatModel} from '../chat-media';
 import {useUi, type Language} from '../language';
 import {normalizeRoomMentionHandle, type RoomMention} from '../local-rooms';
-import {useDictation} from '../useDictation';
+import {useDictation, type TextSelection} from '../useDictation';
 import {AgentSelect} from './AgentSelect';
 import {Tooltip} from './Tooltip';
 import {ModelIcon} from './ModelIcon';
@@ -104,7 +104,7 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
   const [required, setRequired] = useState(false);
   const [mentionCaret, setMentionCaret] = useState<number | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
-  const insertedCaret = useRef<number | null>(null);
+  const pendingSelection = useRef<TextSelection | null>(null);
   const chosenMention = useRef<{text:string; caret:number} | undefined>(undefined);
   const mentionMenu = useRef<HTMLDivElement>(null);
   const mention = !locked && !disabled && mentions?.length && mentionCaret !== null ? mentionAt(draft, mentionCaret) : undefined;
@@ -132,7 +132,14 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
     offline: t('Для распознавания речи нужен интернет.', 'Speech recognition needs an internet connection.'),
     'no-speech': t('Речь не распознана. Попробуйте ещё раз.', 'No speech was recognised. Try again.'),
     failed: t('Не удалось распознать речь. Попробуйте ещё раз.', 'Dictation failed. Try again.'),
-  }[issue]), locked || disabled);
+  }[issue]), locked || disabled, {
+    field,
+    restore(value, selection) {
+      pendingSelection.current = selection;
+      setMentionCaret(null);
+      onDraft(value);
+    },
+  });
   const recording = microphone.phase === 'listening';
   const microphoneLabel = t('Удерживайте для диктовки', 'Hold to dictate');
   const expandLabel = expanded ? t('Уменьшить поле сообщения', 'Shrink message field') : t('Увеличить поле сообщения', 'Expand message field');
@@ -150,8 +157,9 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
       setHint(t('Сократите сообщение, чтобы добавить упоминание.', 'Shorten the message to add a mention.'));
       return;
     }
-    insertedCaret.current = mention.start + replacement.length + (suffix.startsWith(' ') ? 1 : 0);
-    chosenMention.current = {text:next,caret:insertedCaret.current};
+    const caret = mention.start + replacement.length + (suffix.startsWith(' ') ? 1 : 0);
+    pendingSelection.current = {start:caret,end:caret};
+    chosenMention.current = {text:next,caret};
     field.current?.focus({preventScroll:true});
     setMentionCaret(null);
     setMentionIndex(0);
@@ -162,9 +170,10 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
   }
 
   useLayoutEffect(() => {
-    if (insertedCaret.current === null) return;
-    field.current?.setSelectionRange(insertedCaret.current, insertedCaret.current);
-    insertedCaret.current = null;
+    const selection = pendingSelection.current;
+    if (!selection) return;
+    field.current?.setSelectionRange(selection.start,selection.end,selection.direction);
+    pendingSelection.current = null;
   });
 
   useLayoutEffect(() => {
@@ -457,9 +466,9 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
               }))}/>
           </div>}
           {loading && <span className="composer__preparing" role="status">{t('Загрузка…','Loading…')}</span>}
-          <Tooltip label={microphoneLabel+' · K / Alt+K'}>
+          <Tooltip label={microphoneLabel + t(' · Л (K) / Alt+Л', ' · K (Л) / Alt+K')}>
             <button type="button" className="icon-button composer__mic" data-recording={recording}
-              disabled={locked || disabled} aria-label={microphoneLabel} aria-pressed={recording}
+              disabled={locked || disabled} aria-label={microphoneLabel} aria-keyshortcuts="K Л Alt+K Alt+Л" aria-pressed={recording}
               onContextMenu={event => event.preventDefault()}
               onPointerDown={event => {
                 if (event.button !== 0 || recordingPointer.current !== null) return;

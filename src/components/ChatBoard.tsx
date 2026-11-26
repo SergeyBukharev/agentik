@@ -1,5 +1,5 @@
 import {useEffect, useId, useRef, useState} from 'react';
-import {ArrowUpRight, Download, FileText, Files, Image, Plus, Trash2} from 'lucide-react';
+import {ArrowUpRight, ChevronRight, Download, FileText, Files, Image, Plus, Table2, Trash2} from 'lucide-react';
 import {BoardError, getBoard, listBoards, MAX_BOARD_FILES, MAX_BOARD_FILE_BYTES, readBoardFile, saveBoard,
   type BoardDocument, type BoardSummary, type ChatBoard as BoardData} from '../chat-boards';
 import {MAX_CHAT_DOCUMENT_LENGTH, MAX_CHAT_DOCUMENT_NAME_LENGTH} from '../chat-contract';
@@ -7,6 +7,7 @@ import type {ChatDraftAttachment} from '../chat-drafts';
 import {prepareChatImage} from '../chat-media';
 import {useUi, type Language} from '../language';
 import {AgentSelect} from './AgentSelect';
+import {FamilyBudgetDialog} from './FamilyBudgetDialog';
 import {ScreenSkeleton} from './ScreenSkeleton';
 import './chat-board.css';
 
@@ -100,10 +101,25 @@ function FilePreview({document, onEdit, working}: {document: BoardDocument; onEd
   );
 }
 
-export function ChatBoard({profileId, boardKey, title, onUseText, onUseAttachment}: {
+function BudgetBoardItem({profileId}: {profileId: string}) {
+  const {t} = useUi();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  return <li>
+    <button ref={trigger} type="button" className="chat-board__index-card" aria-haspopup="dialog" onClick={() => setOpen(true)}>
+      <span className="chat-board__file-icon"><Table2 size={20} aria-hidden="true"/></span>
+      <span className="chat-board__file-copy"><strong>{t('Семейный бюджет', 'Family budget')}</strong></span>
+      <ChevronRight size={17} aria-hidden="true"/>
+    </button>
+    {open && <FamilyBudgetDialog profileId={profileId} onClose={() => setOpen(false)} returnFocus={() => trigger.current}/>}
+  </li>;
+}
+
+export function ChatBoard({profileId, boardKey, title, hasBudget, onUseText, onUseAttachment}: {
   profileId: string;
   boardKey: string;
   title: string;
+  hasBudget?: boolean;
   onUseText: (text: string) => boolean;
   onUseAttachment: (attachment: ChatDraftAttachment) => void;
 }) {
@@ -138,6 +154,7 @@ export function ChatBoard({profileId, boardKey, title, onUseText, onUseAttachmen
     return () => { active = false; editRequest.current = undefined; };
   }, [profileId, boardKey, title, revision]);
 
+  const showBudget = boardKey === 'budget' && hasBudget;
   const documents = board?.documents ?? [];
   const selected = documents.find(item => item.id === selectedId) ?? documents[0];
   const comparisonOptions = documents.filter(item => item.id !== selected?.id && item.text?.trim());
@@ -247,7 +264,9 @@ export function ChatBoard({profileId, boardKey, title, onUseText, onUseAttachmen
   return (
     <section className="chat-board" aria-labelledby={headingId}>
       <header className="chat-board__header">
-        <h2 className="chat-board__heading" id={headingId}>{t('Файлы доски', 'Board files')}</h2>
+        <h2 className="chat-board__heading" id={headingId}>
+          {showBudget ? t('Материалы доски', 'Board items') : t('Файлы доски', 'Board files')}
+        </h2>
         <input ref={input} type="file" accept={accepted} multiple hidden onChange={event => {
           const files = Array.from(event.currentTarget.files ?? []);
           event.currentTarget.value = '';
@@ -258,10 +277,11 @@ export function ChatBoard({profileId, boardKey, title, onUseText, onUseAttachmen
           <Plus size={18} aria-hidden="true"/>{t('Добавить файлы', 'Add files')}
         </button>
       </header>
+      {showBudget && <ul className="chat-board__index"><BudgetBoardItem profileId={profileId}/></ul>}
       {working && <p role="status" className="chat-board__hint">{t('Обновляем доску…', 'Updating board…')}</p>}
       {notice && <p className="notice notice--error chat-board__notice" role="alert">{notice}</p>}
       {!board && (loadFailed ? <BoardLoadError retry={() => retry(value => value + 1)}/> : <ScreenSkeleton compact/>)}
-      {board && !selected && (
+      {board && !selected && !showBudget && (
         <div className="chat-board__empty">
           <span className="chat-board__file-icon"><Files size={22} aria-hidden="true"/></span>
           <h2>{t('Здесь будут файлы', 'Your files go here')}</h2>
@@ -327,7 +347,7 @@ function BoardLoadError({retry}: {retry: () => void}) {
   </p>;
 }
 
-export function BoardIndex({profileId}: {profileId: string}) {
+export function BoardIndex({profileId, hasBudget}: {profileId: string; hasBudget?: boolean}) {
   const {t} = useUi();
   const [boards, setBoards] = useState<BoardSummary[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -343,15 +363,9 @@ export function BoardIndex({profileId}: {profileId: string}) {
 
   return <section className="chat-board">
     <header className="chat-board__header"><h1 className="section-title">{t('Доски', 'Boards')}</h1></header>
-    {!boards && (loadFailed ? <BoardLoadError retry={() => retry(value => value + 1)}/> : <ScreenSkeleton compact/>)}
-    {boards?.length === 0 && <div className="chat-board__empty">
-      <span className="chat-board__file-icon"><Files size={22} aria-hidden="true"/></span>
-      <h2>{t('Доски пока пусты', 'No boards yet')}</h2>
-      <p className="chat-board__hint">{t('Откройте чат с помощником и добавьте файлы на его доску.', 'Open a chat with an assistant and add files to its board.')}</p>
-      <a className="button button--primary" href="#/assistants">{t('Выбрать помощника', 'Choose an assistant')}</a>
-    </div>}
-    {!!boards?.length && <ul className="chat-board__index">
-      {boards.map(board => <li key={board.key}>
+    {(hasBudget || !!boards?.length) && <ul className="chat-board__index">
+      {hasBudget && <BudgetBoardItem profileId={profileId}/>}
+      {boards?.map(board => <li key={board.key}>
         <a className="chat-board__index-card" href={'#/board/' + encodeURIComponent(board.key)}>
           <span className="chat-board__file-icon"><Files size={20} aria-hidden="true"/></span>
           <span className="chat-board__file-copy"><strong>{board.title || t('Доска', 'Board')}</strong>
@@ -360,5 +374,12 @@ export function BoardIndex({profileId}: {profileId: string}) {
         </a>
       </li>)}
     </ul>}
+    {!boards && (loadFailed ? <BoardLoadError retry={() => retry(value => value + 1)}/> : <ScreenSkeleton compact/>)}
+    {boards?.length === 0 && !hasBudget && <div className="chat-board__empty">
+      <span className="chat-board__file-icon"><Files size={22} aria-hidden="true"/></span>
+      <h2>{t('Доски пока пусты', 'No boards yet')}</h2>
+      <p className="chat-board__hint">{t('Откройте чат с помощником и добавьте файлы на его доску.', 'Open a chat with an assistant and add files to its board.')}</p>
+      <a className="button button--primary" href="#/assistants">{t('Выбрать помощника', 'Choose an assistant')}</a>
+    </div>}
   </section>;
 }

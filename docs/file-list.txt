@@ -112,6 +112,7 @@ src/components/CodeGate.test.tsx
 src/components/CodeGate.tsx
 src/components/family-budget.css
 src/components/FamilyBudget.tsx
+src/components/FamilyBudgetDialog.tsx
 src/components/favorite-button.css
 src/components/FavoriteButton.test.tsx
 src/components/FavoriteButton.tsx
@@ -194,6 +195,7 @@ src/useAccess.ts
 src/useDictation.ts
 src/useMessageBalance.test.tsx
 src/useMessageBalance.ts
+src/usePinnedChatThread.ts
 src/useProfileState.ts
 src/useTheme.test.tsx
 src/useTheme.ts

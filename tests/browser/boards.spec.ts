@@ -65,6 +65,73 @@ test('extracts text from a PDF with the production worker', async ({page}) => {
   await expect(page.getByRole('button',{name:'Извлечь данные'})).toBeEnabled();
 });
 
+test('opens the saved family budget from both boards and keeps edits with the table', async ({page}) => {
+  await page.setViewportSize({width: 320, height: 720});
+  await page.goto(workspace + '#/boards');
+  await enterCode(page);
+  await expect(page.getByRole('heading', {name: 'Доски', exact: true})).toBeVisible();
+  await page.evaluate(() => {
+    const activeKey = Object.keys(sessionStorage).find(key => key.startsWith('agentik:active:'));
+    const profileId = activeKey && sessionStorage.getItem(activeKey);
+    if (!profileId) throw new Error('The workspace did not select a profile');
+    const today = new Date();
+    const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    localStorage.setItem(`agentik:family-budget:${profileId}:${month}`, JSON.stringify({
+      version: 1, salaryCents: 6_000_000,
+      entries: [{id: 'rent', label: 'Rent', cents: 2_000_000, kind: 'bill'}],
+    }));
+    localStorage.setItem('agentik:language', 'en');
+  });
+  await page.reload();
+
+  const budgetItem = page.getByRole('button', {name: 'Family budget', exact: true});
+  const budget = page.getByRole('dialog', {name: 'Family budget', exact: true});
+  await expect(budgetItem).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'No boards yet'})).toHaveCount(0);
+  await budgetItem.press('Enter');
+  const table = budget.getByRole('table', {name: 'Monthly expenses'});
+  await expect(table.getByRole('button', {name: 'Rent'})).toBeVisible();
+  const tableBounds = (await table.boundingBox())!;
+  const dialogBounds = (await budget.boundingBox())!;
+  expect(tableBounds.x + tableBounds.width).toBeLessThanOrEqual(dialogBounds.x + dialogBounds.width);
+  const income = budget.getByRole('textbox', {name: 'Total family income this month, ₽'});
+  await income.fill('65 000');
+  await budget.getByRole('button', {name: 'Save income'}).click();
+  await expectNoHorizontalScroll(page);
+  await page.keyboard.press('Escape');
+  await expect(budget).toHaveCount(0);
+  await expect(budgetItem).toBeFocused();
+
+  await page.goto(workspace + '#/board/budget');
+  await expect(page.getByRole('button', {name: 'Add files'})).toBeEnabled();
+  await expect(page.getByRole('heading', {name: 'Your files go here'})).toHaveCount(0);
+  await budgetItem.click();
+  await expect(income).toHaveValue('65000');
+  await budget.getByRole('button', {name: 'Close', exact: true}).click();
+  await page.locator('.chat-board input[type=file]').setInputFiles({
+    name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('Notes from the board.'),
+  });
+  await expect(page.getByText('Notes from the board.', {exact: true})).toBeVisible();
+  await expect(budgetItem).toBeVisible();
+
+  await page.goto(workspace + '#/boards');
+  await expect(page.getByRole('link', {name: /Files: 1/})).toBeVisible();
+  await expect(budgetItem).toHaveCount(1);
+  await expectNoHorizontalScroll(page);
+});
+
+test('keeps empty boards empty until there is a family budget', async ({page}) => {
+  await page.goto(workspace + '#/boards');
+  await enterCode(page);
+  const budgetItem = page.getByRole('button', {name: 'Семейный бюджет', exact: true});
+  await expect(page.getByRole('heading', {name: 'Доски пока пусты'})).toBeVisible();
+  await expect(budgetItem).toHaveCount(0);
+
+  await page.goto(workspace + '#/board/budget');
+  await expect(page.getByRole('heading', {name: 'Здесь будут файлы'})).toBeVisible();
+  await expect(budgetItem).toHaveCount(0);
+});
+
 test('attaches a board file to the chat draft and sends it with the edited request', async ({page}) => {
   await page.setViewportSize({width:375,height:780});
   await page.goto(workspace+'#/assistant/writer');

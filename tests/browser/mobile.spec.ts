@@ -1,5 +1,5 @@
 import {devices, expect, test} from '@playwright/test';
-import {codeField, enterCode, expectNoHorizontalScroll, messageField, sendButton, workspace} from './helpers';
+import {codeB, codeField, enterCode, expectNoHorizontalScroll, messageField, sendButton, workspace} from './helpers';
 
 test('keeps touch navigation and chat controls reachable as the viewport changes', async ({browser, browserName, baseURL}) => {
   const device = browserName === 'webkit' ? 'iPhone 13 landscape' : 'Pixel 7 landscape';
@@ -53,6 +53,13 @@ test('keeps touch navigation and chat controls reachable as the viewport changes
       await expect(page.getByRole('link', {name:'Назад к чатам'})).toBeInViewport({ratio:1});
       const sendBox = (await sendButton(page).boundingBox())!;
       expect(sendBox.y + sendBox.height).toBeLessThanOrEqual((await navigation.boundingBox())!.y);
+      if (viewport.height <= 320) {
+        await page.getByRole('button', {name:'Увеличить поле сообщения'}).click();
+        await expect(messageField(page)).toBeInViewport({ratio:1});
+        const expandedSend = (await sendButton(page).boundingBox())!;
+        expect(expandedSend.y + expandedSend.height).toBeLessThanOrEqual((await navigation.boundingBox())!.y);
+        await page.getByRole('button', {name:'Уменьшить поле сообщения'}).click();
+      }
       await expectNoHorizontalScroll(page);
     }
   } finally {
@@ -98,6 +105,95 @@ test('keeps the chat field and send button above a mobile keyboard', async ({pag
   await page.setViewportSize({width:390,height:720});
   await expect(navigation).toBeVisible();
 });
+
+for (const kind of ['private', 'group'] as const) {
+  test(`keeps the ${kind} chat composer visible while browsing a long history`, async ({page}) => {
+    await page.goto(workspace + '#/login');
+    await enterCode(page, codeB);
+    await expect(page.getByRole('heading', {name:'Ваши разговоры'})).toBeVisible();
+    if (kind === 'group') {
+      await page.goto(workspace + '#/rooms');
+      await page.getByRole('button', {name:'Создать комнату'}).click();
+      await page.getByRole('textbox', {name:'Название комнаты'}).fill('Архив группы');
+      await page.getByRole('dialog').getByRole('button', {name:'Создать комнату'}).click();
+      await expect(page.getByRole('heading', {name:'Архив группы'})).toBeVisible();
+    }
+    await page.evaluate(kind => {
+      const updatedAt = Date.now();
+      const messages = Array.from({length:24}, (_, index) =>
+        `Сообщение ${index + 1}\n${'Текст для проверки прокрутки. '.repeat(8)}`);
+      if (kind === 'group') {
+        const key = 'agentik:rooms:v1';
+        const rooms = JSON.parse(localStorage.getItem(key)!);
+        const room = rooms[0];
+        room.messages = messages.map((body, index) => ({id:`test-${index}`, userId:room.ownerId, name:'Автор', body, createdAt:updatedAt}));
+        localStorage.setItem(key, JSON.stringify(rooms));
+      } else {
+        const selectionKey = Object.keys(sessionStorage).find(key => key.startsWith('agentik:active'))!;
+        localStorage.setItem(`agentik:state:${sessionStorage.getItem(selectionKey)}`, JSON.stringify({
+          version:1, favorites:[], custom:[], expiresAt:updatedAt + 86_400_000,
+          conversations:[{id:'long-history', assistantId:'writer', title:'Архив', updatedAt,
+            messages:messages.map(content => ({role:'assistant', content}))}],
+        }));
+      }
+    }, kind);
+    await page.setViewportSize({width:1200, height:720});
+    if (kind === 'private') await page.goto(workspace + '#/chat/long-history');
+    await page.reload();
+
+    const field = kind === 'private' ? messageField(page) : page.getByRole('textbox', {name:'Сообщение участникам'});
+    const thread = page.getByRole('region', {name:'История сообщений'});
+    const oldest = page.getByText(/^Сообщение 1\s+Текст/);
+    const newest = page.getByText(/^Сообщение 24\s+Текст/);
+    for (const width of [1200, 390]) {
+      await page.setViewportSize({width, height:720});
+      await expect(field).toBeInViewport({ratio:1});
+      await expect(newest).toBeInViewport();
+      const fieldBeforeScroll = (await field.boundingBox())!;
+      await thread.evaluate(el => { el.scrollTop = 0; });
+      await expect(oldest).toBeInViewport();
+      await expect(newest).not.toBeInViewport();
+      expect(Math.abs((await field.boundingBox())!.y - fieldBeforeScroll.y)).toBeLessThanOrEqual(1);
+      expect(await page.evaluate(() => window.scrollY)).toBe(0);
+      await expectNoHorizontalScroll(page);
+      await thread.evaluate(el => { el.scrollTop = el.scrollHeight; });
+      await expect(newest).toBeInViewport();
+    }
+
+    const close = page.getByRole('link', {name:'Закрыть чат'});
+    await expect(close).toBeInViewport({ratio:1});
+    const closeBounds = (await close.boundingBox())!;
+    const headerBounds = (await page.locator('.chat__header').boundingBox())!;
+    expect(closeBounds.width).toBeGreaterThanOrEqual(44);
+    expect(Math.abs(closeBounds.y - headerBounds.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(closeBounds.x + closeBounds.width - headerBounds.x - headerBounds.width)).toBeLessThanOrEqual(1);
+
+    const navigation = page.getByRole('navigation', {name:'Нижняя навигация'});
+    const send = kind === 'private' ? sendButton(page) : page.getByRole('button', {name:'Отправить участникам'});
+    const sendBottom = async () => {
+      const bounds = (await send.boundingBox())!;
+      return bounds.y + bounds.height;
+    };
+    expect(await sendBottom()).toBeLessThanOrEqual((await navigation.boundingBox())!.y);
+    await field.focus();
+    await page.evaluate(() => {
+      const viewport = window.visualViewport!;
+      Object.defineProperty(viewport, 'height', {value:405, configurable:true});
+      Object.defineProperty(viewport, 'offsetTop', {value:35, configurable:true});
+      viewport.dispatchEvent(new Event('resize'));
+    });
+    await expect(navigation).toBeHidden();
+    expect(await sendBottom()).toBeLessThanOrEqual(440);
+    await expect(newest).toBeInViewport();
+    await field.fill('Новое сообщение в длинном чате');
+    await send.click();
+    const sent = thread.getByText('Новое сообщение в длинном чате', {exact:true});
+    await expect(sent).toBeAttached();
+    await expect(kind === 'private' ? thread.getByText(/Это демонстрационный ответ/) : sent).toBeInViewport();
+    await close.click();
+    await expect(page.getByRole('heading', {name:kind === 'private' ? 'Ваши разговоры' : 'Общие комнаты'})).toBeVisible();
+  });
+}
 
 test('keeps board files available for editing after reload on mobile', async ({page}) => {
   const name = 'СверхдлинноеНазвание'.repeat(3);

@@ -51,7 +51,7 @@ test('opens the model menu, displays provider marks and supports keyboard select
   await trigger.press('Enter');
   await alice.click();
   await expect(trigger).toContainText('Алиса AI');
-  await page.setViewportSize({width:1024,height:768});
+  await page.setViewportSize({width:1100,height:768});
   await page.getByRole('button',{name:'ENG',exact:true}).click();
   await expect(page.getByRole('combobox',{name:'Model'})).toContainText('Alice AI');
 });

@@ -6,6 +6,7 @@
 }
 
 :root[data-telegram='app'] {
+  --workspace-chat-safe-bottom: var(--agentik-tg-safe-bottom);
   --persistent-brand-top: max(10px, var(--agentik-tg-safe-top));
   --persistent-brand-inline: max(13px, var(--agentik-tg-safe-left), var(--agentik-tg-safe-right));
 }
@@ -17,14 +18,13 @@
   }
   :root[data-telegram='app'] .main {
     padding-inline: max(16px, var(--agentik-tg-safe-left)) max(16px, var(--agentik-tg-safe-right));
+  }
+  :root[data-telegram='app'] .main:not(:has(> .chat--docked)) {
     padding-block-end: calc(var(--workspace-mobile-nav-height, 72px) + 19px + var(--agentik-tg-safe-bottom));
   }
   :root[data-telegram='app'] .bottom-nav {
     padding-inline: max(12px, var(--agentik-tg-safe-left)) max(12px, var(--agentik-tg-safe-right));
     padding-block-end: max(8px, var(--agentik-tg-safe-bottom));
-  }
-  :root[data-telegram='app'] .composer-stack {
-    inset-block-end: var(--composer-keyboard-inset, calc(var(--workspace-mobile-nav-height, 72px) + var(--agentik-tg-safe-bottom)));
   }
   :root[data-telegram='app'] .modal {
     max-block-size: calc(100dvh - var(--agentik-tg-safe-top) - 20px);

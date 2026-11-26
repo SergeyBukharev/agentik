@@ -1,5 +1,5 @@
 import {memo, useState, type FormEvent} from 'react';
-import {Bot, LockKeyhole, Plus, Users} from 'lucide-react';
+import {Bot, LockKeyhole, Plus, Users, X} from 'lucide-react';
 import type {Assistant} from '../catalog';
 import type {ChatImage} from '../chat-media';
 import type {Language} from '../language';
@@ -10,6 +10,7 @@ import {
 import {replyTo, type ReplyOptions} from '../services';
 import type {LocalProfile} from '../session';
 import {telegramShareSnapshot} from '../telegram-share-client';
+import {usePinnedChatThread} from '../usePinnedChatThread';
 import {ChatComposer, MessageImages} from './ChatComposer';
 import {Modal} from './Modal';
 import {RoomAccessDialog, roomError, useLocalRooms} from './RoomAccess';
@@ -67,6 +68,7 @@ export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCr
   const [charactersOpen, setCharactersOpen] = useState(false);
   const [pendingReplies, setPendingReplies] = useState(0);
   const room = rooms.find(item => item.id === roomId);
+  const thread = usePinnedChatThread(room?.id, room?.messages, pendingReplies);
   const openRoom = (item: LocalRoom) => {location.hash = '#/rooms/' + item.id;};
   const createLabel = t('Создать комнату', 'Create a group');
 
@@ -177,7 +179,7 @@ export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCr
       setAccessOpen(true);
     };
     return (
-      <section className="chat room-chat">
+      <section className="chat chat--docked room-chat">
         <header className="chat__header">
           <div className="chat__heading">
             <a className="text-link" href="#/rooms">{t('Все комнаты', 'All groups')}</a>
@@ -202,18 +204,23 @@ export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCr
                 }))}/>
             )}
           </div>
+          <a className="icon-button chat__close" href="#/rooms" aria-label={t('Закрыть чат', 'Close chat')}>
+            <X size={20} aria-hidden="true"/>
+          </a>
         </header>
-        <div className="chat__messages room-message-list" aria-live="polite" data-long-thread={room.messages.length > 60 || undefined}>
-          {!room.messages.length && <div className="chat-welcome">
-            <Scene kind="together"/>
-            <WelcomeTitle text={t('Начните с «привет»', 'Say hello')}/>
-            <p className="chat-welcome__text">{t('Напишите сообщение или пригласите другого участника.', 'Write a message or invite another member.')}</p>
-          </div>}
-          <RoomMessages messages={room.messages} profileId={profile.id} language={language}/>
-          {pendingReplies > 0 && <p className="chat__loading" role="status"><span/>
-            {t('Персонаж готовит ответ…','A character is preparing a reply…')}</p>}
+        <div className="chat__thread" ref={thread} role="region" aria-label={t('История сообщений', 'Message history')} tabIndex={0}>
+          <div className="chat__messages room-message-list" aria-live="polite" data-long-thread={room.messages.length > 60 || undefined}>
+            {!room.messages.length && <div className="chat-welcome">
+              <Scene kind="together"/>
+              <WelcomeTitle text={t('Начните с «привет»', 'Say hello')}/>
+              <p className="chat-welcome__text">{t('Напишите сообщение или пригласите другого участника.', 'Write a message or invite another member.')}</p>
+            </div>}
+            <RoomMessages messages={room.messages} profileId={profile.id} language={language}/>
+            {pendingReplies > 0 && <p className="chat__loading" role="status"><span/>
+              {t('Персонаж готовит ответ…','A character is preparing a reply…')}</p>}
+          </div>
+          {error && <p className="notice notice--error" role="alert">{error}</p>}
         </div>
-        {error && <p className="notice notice--error" role="alert">{error}</p>}
         <ChatComposer draft={draft} onDraft={setDraft} onSubmit={(images, anchor) => {
           const commit = () => send(room,images,anchor);
           return billMessage ? billMessage(commit) : commit();

@@ -1,4 +1,4 @@
-import {expect,test} from '@playwright/test';
+import {expect,test,type Locator} from '@playwright/test';
 import {codeB,codeField,enterCode,expectNoHorizontalScroll,messageField,openCatalog,selectChoice,sendButton,workspace} from './helpers';
 
 test('requires the configured email and keeps only the active code cell highlighted',async({page})=>{
@@ -117,6 +117,73 @@ test('shows expanding waves while dictating and reveals only the new text inside
   await expect(field).toHaveValue('Исправленный текст Кофе, чай 👩‍💻 Кофе, чай 👩‍💻');
 });
 
+test('holds K or Л inside the editor to dictate while a short press types the letter', async ({page}) => {
+  await page.addInitScript(() => {
+    class Recognition {
+      onstart?: () => void;
+      onend?: () => void;
+      onresult?: (event: unknown) => void;
+      start() { queueMicrotask(() => this.onstart?.()); }
+      stop() {
+        this.onresult?.({resultIndex:0,results:[{isFinal:true,0:{transcript:'Добавленный голосом текст'}}]});
+        this.onend?.();
+      }
+      abort() {}
+    }
+    Object.defineProperty(window,'SpeechRecognition',{value:Recognition});
+  });
+  await page.goto(workspace+'#/assistant/writer');
+  await enterCode(page);
+  const field = messageField(page);
+  const microphone = page.getByRole('button',{name:'Удерживайте для диктовки'});
+  await field.fill('');
+  await page.clock.install();
+
+  await field.press('k');
+  await page.clock.runFor(450);
+  await expect(field).toHaveValue('k');
+  await expect(microphone).toHaveAttribute('aria-pressed','false');
+
+  await field.fill('Список покупок');
+  await field.evaluate(node => (node as HTMLTextAreaElement).setSelectionRange(0,6,'backward'));
+  await page.keyboard.down('k');
+  await page.clock.runFor(450);
+  await expect(microphone).toHaveAttribute('aria-pressed','true',{timeout:2500});
+  await expect(field).toHaveValue('Список покупок');
+  expect(await field.evaluate(node => (node as HTMLTextAreaElement).selectionEnd)).toBe(6);
+  await page.keyboard.down('k');
+  await expect(field).toHaveValue('Список покупок');
+  await page.keyboard.up('k');
+  await expect(field).toHaveValue('Список покупок Добавленный голосом текст');
+
+  await field.fill('');
+  const russian = {key:'л',code:'Unidentified'};
+  await field.dispatchEvent('keydown',russian);
+  await page.keyboard.insertText('л');
+  await field.dispatchEvent('keyup',russian);
+  await page.clock.runFor(450);
+  await expect(field).toHaveValue('л');
+  await expect(microphone).toHaveAttribute('aria-pressed','false');
+
+  await field.fill('Голос');
+  await field.press('End');
+  await field.dispatchEvent('keydown',russian);
+  await page.keyboard.insertText('л');
+  await page.clock.runFor(450);
+  await expect(microphone).toHaveAttribute('aria-pressed','true');
+  await field.dispatchEvent('keyup',russian);
+  await expect(field).toHaveValue('Голос Добавленный голосом текст');
+  await expect(microphone).toHaveAttribute('aria-pressed','false');
+
+  await field.fill('');
+  await page.keyboard.down('k');
+  await page.keyboard.press('a');
+  await page.clock.runFor(450);
+  await page.keyboard.up('k');
+  await expect(field).toHaveValue('ka');
+  await expect(microphone).toHaveAttribute('aria-pressed','false');
+});
+
 test('shows unlimited PRO balance without a paywall trigger', async ({page}) => {
   await openCatalog(page, codeB);
   const balance = page.getByLabel('Баланс демотокенов');
@@ -140,7 +207,7 @@ test('opens the profile, assistant form and PRO from their direct links',async({
   }
 });
 
-test('keeps the expand button clear of a scrolling draft on desktop and mobile', async ({page}) => {
+test('keeps the branded draft scrollbar at the right edge on desktop and mobile', async ({page}) => {
   await page.goto(workspace+'#/assistant/writer');
   await enterCode(page);
   const field = messageField(page);
@@ -154,6 +221,15 @@ test('keeps the expand button clear of a scrolling draft on desktop and mobile',
     await expect.poll(() => field.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
   }
 
+  async function expectScrollbarOutside(button: Locator) {
+    const [area, toggle, editor] = await Promise.all([
+      field.boundingBox(), button.boundingBox(), page.locator('.composer__editor').boundingBox(),
+    ]);
+    const gutter = await field.evaluate(node => node.offsetWidth - node.clientWidth);
+    expect(Math.abs(area!.x + area!.width - editor!.x - editor!.width)).toBeLessThanOrEqual(1);
+    expect(area!.x + area!.width - toggle!.x - toggle!.width).toBeGreaterThanOrEqual(Math.max(4, gutter));
+  }
+
   for (const width of [1120, 320]) {
     await page.setViewportSize({width, height:690});
     const expand = page.getByRole('button', {name:'Увеличить поле сообщения'});
@@ -163,7 +239,7 @@ test('keeps the expand button clear of a scrolling draft on desktop and mobile',
     const fieldBounds = (await field.boundingBox())!;
     const expandBounds = (await expand.boundingBox())!;
     expect(Math.abs(expandBounds.y - fieldBounds.y)).toBeLessThanOrEqual(1);
-    expect(expandBounds.x).toBeGreaterThanOrEqual(fieldBounds.x + fieldBounds.width);
+    await expectScrollbarOutside(expand);
     await expect(field).toHaveCSS('resize', 'none');
     await expectDraftScrolls();
     await expand.press('Enter');
@@ -172,7 +248,7 @@ test('keeps the expand button clear of a scrolling draft on desktop and mobile',
     await expect(collapse).toHaveAttribute('aria-expanded', 'true');
     const expandedField = (await field.boundingBox())!;
     expect(expandedField.height).toBeGreaterThan(fieldBounds.height);
-    expect((await collapse.boundingBox())!.x).toBeGreaterThanOrEqual(expandedField.x + expandedField.width);
+    await expectScrollbarOutside(collapse);
     await expect(field).toHaveValue(draft);
     await expectDraftScrolls();
     await expectNoHorizontalScroll(page);
@@ -180,4 +256,19 @@ test('keeps the expand button clear of a scrolling draft on desktop and mobile',
     await expect(expand).toHaveAttribute('aria-expanded', 'false');
     expect((await field.boundingBox())!.height).toBe(fieldBounds.height);
   }
+
+  await page.getByRole('button',{name:'Тёмная тема',exact:true}).click();
+  const colors = await field.evaluate(node => {
+    const sample = document.createElement('span');
+    sample.style.color = 'var(--brand-lime)';
+    document.body.append(sample);
+    const lime = getComputedStyle(sample).color;
+    sample.remove();
+    const scrollbar = CSS.supports('scrollbar-color','auto')
+      ? getComputedStyle(node).getPropertyValue('scrollbar-color')
+      : getComputedStyle(node,'::-webkit-scrollbar-thumb').backgroundColor;
+    return {lime,scrollbar,selection:getComputedStyle(node,'::selection').backgroundColor};
+  });
+  expect(colors.scrollbar).toContain(colors.lime);
+  expect(colors.selection).toBe(colors.lime);
 });

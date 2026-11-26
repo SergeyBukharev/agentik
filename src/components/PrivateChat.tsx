@@ -1,7 +1,8 @@
-import {lazy, memo, Suspense, useEffect, useRef, useSyncExternalStore} from 'react';
-import {ChevronLeft, WifiOff} from 'lucide-react';
+import {lazy, memo, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type RefObject} from 'react';
+import {ChevronLeft, Table2, WifiOff, X} from 'lucide-react';
 import type {Assistant} from '../catalog';
-import type {Conversation} from '../state';
+import {lastChatMessageIndex, type Conversation} from '../state';
+import {usePinnedChatThread} from '../usePinnedChatThread';
 import {AgentIcon} from './Brand';
 import {WelcomeTitle} from './ShaderEffects';
 import {ChatComposer, DocumentLabel, MessageImages} from './ChatComposer';
@@ -15,24 +16,33 @@ import {useUi} from '../language';
 import {telegramShareSnapshot} from '../telegram-share-client';
 import {TelegramShare} from './TelegramShare';
 
-const FamilyBudget = lazy(() => import('./FamilyBudget').then(module => ({default:module.FamilyBudget})));
+const FamilyBudgetDialog = lazy(() => import('./FamilyBudgetDialog').then(module => ({default:module.FamilyBudgetDialog})));
 
-const PrivateMessages = memo(function PrivateMessages({messages, assistantName, userName}: {
+const PrivateMessages = memo(function PrivateMessages({messages, assistantName, userName, budgetCard, onOpenBudget}: {
   messages: Conversation['messages'];
   assistantName: string;
   userName: string;
+  budgetCard: RefObject<HTMLButtonElement | null>;
+  onOpenBudget: (opener: HTMLButtonElement) => void;
 }) {
+  const {t} = useUi();
   return messages.map((message, index) => (
     <article className={`message message--${message.role}`} key={index}>
       <span className="message__author">{message.role === 'user' ? userName : assistantName}</span>
-      {message.content && <p className="message__body">{message.content}</p>}
+      {message.artifact === 'family-budget' ? <>
+        <p className="message__body"><strong>{t('Таблица семейного бюджета', 'Family budget table')}</strong></p>
+        <button className="button button--secondary message__budget-action" type="button" ref={budgetCard}
+          aria-haspopup="dialog" onClick={event => onOpenBudget(event.currentTarget)}>
+          <Table2 size={18} aria-hidden="true"/>{t('Открыть таблицу бюджета', 'Open budget table')}
+        </button>
+      </> : message.content && <p className="message__body">{message.content}</p>}
       {message.document && <div className="message__document"><DocumentLabel file={message.document}/></div>}
       <MessageImages images={message.images}/>
     </article>
   ));
 });
 
-export function PrivateChat({assistant, conversation, profile, messagePrice, mode, online, busy, drafts, error, onSend, model, onModel, telegramShareToken}: {
+export function PrivateChat({assistant, conversation, profile, messagePrice, mode, online, busy, drafts, error, onSend, onCreateBudget, model, onModel, telegramShareToken}: {
   assistant: Assistant;
   conversation?: Conversation;
   profile: LocalProfile;
@@ -43,30 +53,46 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
   drafts: ChatDrafts;
   error?: string;
   onSend: (retry: boolean, anchor: HTMLElement | null, images?:ChatImage[]) => boolean | Promise<boolean>;
+  onCreateBudget?: () => string | undefined;
   model: ChatModel;
   onModel: (model: ChatModel) => void;
   telegramShareToken?: string;
 }) {
   const {t,language}=useUi();
   const draftField = useRef<HTMLTextAreaElement>(null);
+  const budgetCard = useRef<HTMLButtonElement>(null);
+  const [budgetDialog, setBudgetDialog] = useState<{conversationId: string; opener: HTMLButtonElement}>();
   const routeKey = conversation?.id ?? 'new:' + assistant.id;
+  const thread = usePinnedChatThread(routeKey, conversation?.messages, busy);
   const draft = useSyncExternalStore(drafts.subscribe, () => drafts.get(routeKey));
   const attachment = useSyncExternalStore(drafts.subscribe, () => drafts.getAttachment(routeKey));
   const onDraft = (text: string) => drafts.set(routeKey, text);
   useEffect(() => {
     if (attachment) draftField.current?.focus({preventScroll:true});
   }, [attachment]);
+  useEffect(() => {
+    setBudgetDialog(current => current?.conversationId === routeKey ? current : undefined);
+  }, [routeKey]);
   const composer = useRef({route:routeKey, epoch:0, createdId:''});
   if (composer.current.route !== routeKey) {
     if (composer.current.createdId !== routeKey) composer.current.epoch++;
     composer.current.route = routeKey;
     composer.current.createdId = '';
   }
+  const openSavedBudget = useCallback((opener: HTMLButtonElement) => {
+    setBudgetDialog({conversationId:routeKey, opener});
+  }, [routeKey]);
   const offlineAi = mode === 'live' && !online;
-  const lastMessage = conversation?.messages.at(-1);
+  const lastMessage = conversation?.messages[lastChatMessageIndex(conversation.messages)];
   const canRetry = !busy && lastMessage?.role === 'user';
   const hasMessages = Boolean(conversation?.messages.length);
   const suggestions = <ChatSuggestions assistant={assistant} draft={draft} compact={hasMessages} busy={busy}
+    onCreateBudget={onCreateBudget && (opener => {
+      const conversationId = onCreateBudget();
+      if (!conversationId) return;
+      if (!conversation) composer.current.createdId = conversationId;
+      setBudgetDialog({conversationId, opener});
+    })}
     onApply={next => {
       const field = draftField.current;
       if (!field || field.readOnly) return;
@@ -75,7 +101,7 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
     }}/>;
 
   return (
-    <section className="chat">
+    <section className="chat chat--docked">
       <div className="chat__header">
         <div className="chat__identity">
           <a className="icon-button chat__back" href="#/history" aria-label={t('Назад к чатам','Back to chats')}><ChevronLeft size={22}/></a>
@@ -98,28 +124,31 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
           )}
           {conversation && <a className="button button--secondary" href={`#/assistant/${assistant.id}`}>{t('Новый разговор','New chat')}</a>}
         </div>
+        <a className="icon-button chat__close" href="#/history" aria-label={t('Закрыть чат','Close chat')}><X size={20} aria-hidden="true"/></a>
       </div>
-      <ChatBoardTabs assistantId={assistant.id} conversationId={conversation?.id} active="chat"/>
-      {assistant.id === 'budget' && <Suspense fallback={null}><FamilyBudget profileId={profile.id}/></Suspense>}
-      <div className="chat__messages" aria-live="polite" aria-busy={busy} data-long-thread={(conversation?.messages.length ?? 0) > 60 || undefined}>
-        {conversation?.messages.length ? <PrivateMessages messages={conversation.messages} assistantName={assistant.name} userName={t('Вы','You')}/> : (
-          <div className="chat-welcome">
-            <span className={`avatar avatar--large avatar--${assistant.color}`}><AgentIcon name={assistant.icon} size={32}/></span>
-            <WelcomeTitle key={routeKey}/>
-            <p className="chat-welcome__text">{assistant.description}</p>
-            {suggestions}
+      <div className="chat__thread" ref={thread} tabIndex={0} role="region" aria-label={t('История сообщений','Message history')}>
+        <ChatBoardTabs assistantId={assistant.id} conversationId={conversation?.id} active="chat"/>
+        <div className="chat__messages" aria-live="polite" aria-busy={busy} data-long-thread={(conversation?.messages.length ?? 0) > 60 || undefined}>
+          {conversation?.messages.length ? <PrivateMessages messages={conversation.messages} assistantName={assistant.name}
+            userName={t('Вы','You')} budgetCard={budgetCard} onOpenBudget={openSavedBudget}/> : (
+            <div className="chat-welcome">
+              <span className={`avatar avatar--large avatar--${assistant.color}`}><AgentIcon name={assistant.icon} size={32}/></span>
+              <WelcomeTitle key={routeKey}/>
+              <p className="chat-welcome__text">{assistant.description}</p>
+              {suggestions}
+            </div>
+          )}
+          {busy && <p role="status" className="chat__loading chat__loading--skeleton" data-skeleton-level="surface"><span/>{t('Готовим ответ…','Preparing a reply…')}</p>}
+        </div>
+        {offlineAi && <p role="status" className="offline-note"><WifiOff size={16}/> {t('Подключитесь к интернету, чтобы отправить запрос AI.','Connect to the internet to send an AI request.')}</p>}
+        {canRetry && (
+          <div className={`notice chat__error${error ? ' notice--error' : ''}`} role={error ? 'alert' : 'status'}>
+            <span>{error || t('Ответ ещё не получен.','No reply yet.')}</span>
+            <button className="button button--text" disabled={offlineAi} onClick={() => onSend(true, null)}>{t('Повторить запрос','Try again')}</button>
           </div>
         )}
-        {busy && <p role="status" className="chat__loading chat__loading--skeleton" data-skeleton-level="surface"><span/>{t('Готовим ответ…','Preparing a reply…')}</p>}
+        {hasMessages && suggestions}
       </div>
-      {offlineAi && <p role="status" className="offline-note"><WifiOff size={16}/> {t('Подключитесь к интернету, чтобы отправить запрос AI.','Connect to the internet to send an AI request.')}</p>}
-      {canRetry && (
-        <div className={`notice chat__error${error ? ' notice--error' : ''}`} role={error ? 'alert' : 'status'}>
-          <span>{error || t('Ответ ещё не получен.','No reply yet.')}</span>
-          <button className="button button--text" disabled={offlineAi} onClick={() => onSend(true, null)}>{t('Повторить запрос','Try again')}</button>
-        </div>
-      )}
-      {hasMessages && suggestions}
       <ChatComposer key={composer.current.epoch} fieldRef={draftField} draft={draft} onDraft={onDraft}
         busy={busy} disabled={offlineAi} model={model} onModel={onModel}
         attachment={attachment} onRemoveAttachment={() => drafts.setAttachment(routeKey)}
@@ -130,6 +159,10 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
           return accepted;
         }}/>
       <p className="chat__disclaimer">{mode === 'demo' ? t('Демочат работает офлайн.','Demo chat works offline.') : t('AI может ошибаться. Проверяйте важные факты.','AI can make mistakes. Verify important facts.')}</p>
+      {budgetDialog?.conversationId === routeKey && <Suspense fallback={null}>
+        <FamilyBudgetDialog profileId={profile.id} onClose={() => setBudgetDialog(undefined)}
+          returnFocus={() => budgetDialog.opener.isConnected ? budgetDialog.opener : budgetCard.current}/>
+      </Suspense>}
     </section>
   );
 }

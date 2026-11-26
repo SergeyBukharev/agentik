@@ -88,18 +88,32 @@ function budgetKey(profileId: string, month: string): string | null {
   return `agentik:family-budget:${profileId}:${month}`;
 }
 
-export function loadBudget(storage: Pick<Storage, 'getItem'>, profileId: string, month: string): MonthlyBudget {
+function readBudget(storage: Pick<Storage, 'getItem'>, profileId: string, month: string): MonthlyBudget | undefined {
   const key = budgetKey(profileId, month);
-  if (!key) return emptyBudget();
+  if (!key) return;
   try {
     const raw = storage.getItem(key);
-    if (!raw || raw.length > MAX_STORED_LENGTH) return emptyBudget();
+    if (!raw || raw.length > MAX_STORED_LENGTH) return;
     const data = JSON.parse(raw) as unknown;
     if (isBudget(data) && 'version' in data && data.version === 1) {
       return {salaryCents: data.salaryCents, entries: data.entries};
     }
   } catch { /* Treat an unavailable or invalid local record as empty. */ }
-  return emptyBudget();
+}
+
+export function loadBudget(storage: Pick<Storage, 'getItem'>, profileId: string, month: string): MonthlyBudget {
+  return readBudget(storage, profileId, month) ?? emptyBudget();
+}
+
+export function hasSavedBudget(storage: Pick<Storage, 'length' | 'key' | 'getItem'>, profileId: string): boolean {
+  const prefix = `agentik:family-budget:${profileId}:`;
+  try {
+    for (let index = 0; index < storage.length; index++) {
+      const key = storage.key(index);
+      if (key?.startsWith(prefix) && readBudget(storage, profileId, key.slice(prefix.length))) return true;
+    }
+  } catch { /* Treat an unavailable store as empty. */ }
+  return false;
 }
 
 export function saveBudget(storage: Pick<Storage, 'setItem'>, profileId: string, month: string, value: MonthlyBudget): boolean {
