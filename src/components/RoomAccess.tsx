@@ -41,6 +41,9 @@ const roomErrors: Record<string, string> = {
   'Для этого чата приглашения закрыты.': 'Invites are closed for this chat.',
   'Настройки доступа может менять только владелец.': 'Only the owner can manage access.',
   'Выберите одно поддерживаемое изображение.': 'Choose one supported image.',
+  'Ботов может добавлять только владелец комнаты.': 'Only the group owner can add characters.',
+  'Ботов может удалять только владелец комнаты.': 'Only the group owner can remove characters.',
+  'Выберите бота для комнаты.': 'Choose a character for the group.',
 };
 
 export function roomError(error: unknown, language: 'ru' | 'en') {

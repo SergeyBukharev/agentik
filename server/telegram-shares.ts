@@ -5,9 +5,10 @@ import {setTimeout as delay} from 'node:timers/promises';
 import type {AccessSession} from '../src/access-contract.ts';
 import {
   isTelegramShareId, MAX_TELEGRAM_SHARE_AUTHOR_LENGTH, MAX_TELEGRAM_SHARE_MESSAGES,
-  MAX_TELEGRAM_SHARE_TEXT_LENGTH, MAX_TELEGRAM_SHARE_TITLE_LENGTH, TELEGRAM_SHARE_PREFIX,
+  MAX_TELEGRAM_SHARE_TEXT_LENGTH, MAX_TELEGRAM_SHARE_TITLE_LENGTH, TELEGRAM_SHARE_PAGE_PREFIX, TELEGRAM_SHARE_PREFIX,
   type TelegramShareLink, type TelegramShareMessage, type TelegramShareSnapshot,
 } from '../src/telegram-share-contract.ts';
+import {httpsShareOrigin, parseSharePreviewPng, respondToSharePreview} from './telegram-share-preview.ts';
 
 export type TelegramShareHandler = (
   request: Request, session: AccessSession | null, headers: Record<string, string>,
@@ -17,10 +18,12 @@ type TelegramShareOptions = {
   directory?: string;
   botUsername?: string;
   miniAppShortName?: string;
+  publicOrigin?: string;
   now?: () => number;
 };
 
-type StoredShare = {link: TelegramShareLink; snapshot: TelegramShareSnapshot};
+type SharePublication = {snapshot: TelegramShareSnapshot; previewPng?: string};
+type StoredShare = SharePublication & {link: TelegramShareLink};
 
 const SHARE_DURATION_MS = 24 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
@@ -63,7 +66,12 @@ async function readSnapshot(request: Request) {
       if (size > MAX_BODY_BYTES) throw new ShareBodyTooLarge();
       json += decoder.decode(value, {stream: true});
     }
-    return parseSnapshot(JSON.parse(json + decoder.decode()));
+    const payload = JSON.parse(json + decoder.decode()) as {previewPng?: unknown} | null;
+    const snapshot = parseSnapshot(payload);
+    if (!snapshot) return null;
+    const previewPng = parseSharePreviewPng(payload?.previewPng);
+    if (payload?.previewPng !== undefined && !previewPng) return null;
+    return {snapshot, previewPng};
   } finally {
     reader.releaseLock();
   }
@@ -114,7 +122,7 @@ function createStore(directory: string | undefined, now: () => number) {
         const snapshot = parseSnapshot(stored.snapshot);
         if (!isTelegramShareId(id) || id.slice(2, 34) !== scope || typeof url !== 'string'
           || !Number.isSafeInteger(expiresAt) || !snapshot) return null;
-        return {link: {id, url, expiresAt}, snapshot};
+        return {link: {id, url, expiresAt}, snapshot, previewPng: parseSharePreviewPng(stored.previewPng)};
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error instanceof SyntaxError) return null;
         throw error;
@@ -144,11 +152,23 @@ function createStore(directory: string | undefined, now: () => number) {
 export function createTelegramShares(options: TelegramShareOptions): TelegramShareHandler {
   const now = options.now ?? Date.now;
   const target = telegramTarget(options);
+  const publicOrigin = httpsShareOrigin(options.publicOrigin);
+  const pagePrefix = TELEGRAM_SHARE_PAGE_PREFIX + '/';
   const store = createStore(options.directory, now);
 
   async function current(scope: string) {
     const record = await store.read(scope);
     return record && record.link.expiresAt > now() ? record : null;
+  }
+
+  async function readPublic(id: string) {
+    if (!isTelegramShareId(id)) return null;
+    const record = await current(id.slice(2, 34));
+    return record && timingSafeEqual(Buffer.from(id), Buffer.from(record.link.id)) ? record : null;
+  }
+
+  function publicLink(link: TelegramShareLink): TelegramShareLink {
+    return publicOrigin ? {...link, previewUrl: publicOrigin + pagePrefix + link.id} : link;
   }
 
   return async (request, session, baseHeaders) => {
@@ -158,12 +178,23 @@ export function createTelegramShares(options: TelegramShareOptions): TelegramSha
     const url = new URL(request.url);
     const method = request.method;
     try {
+      if (url.pathname.startsWith(pagePrefix)) {
+        if (!publicOrigin) return notFound();
+        const [id, filename, extra] = url.pathname.slice(pagePrefix.length).split('/');
+        if (!isTelegramShareId(id) || extra !== undefined || (filename !== undefined && filename !== 'preview.png')) return notFound();
+        if (method !== 'GET' && method !== 'HEAD') return out(405, {error: 'Используйте GET или HEAD.'}, {Allow:'GET, HEAD'});
+        const record = await readPublic(id);
+        if (!record) return notFound();
+        return respondToSharePreview({method, headers, title:record.snapshot.title, id, publicOrigin, previewPng:record.previewPng,
+          image:filename === 'preview.png'});
+      }
+
       if (url.pathname !== TELEGRAM_SHARE_PREFIX) {
         const id = url.pathname.slice(PUBLIC_PREFIX.length);
         if (!url.pathname.startsWith(PUBLIC_PREFIX) || !isTelegramShareId(id)) return notFound();
         if (method !== 'GET') return out(405, {error: 'Используйте GET.'}, {Allow: 'GET'});
-        const record = await current(id.slice(2, 34));
-        if (!record || !timingSafeEqual(Buffer.from(id), Buffer.from(record.link.id))) return notFound();
+        const record = await readPublic(id);
+        if (!record) return notFound();
         return out(200, {...record.snapshot, expiresAt: record.link.expiresAt});
       }
 
@@ -177,7 +208,10 @@ export function createTelegramShares(options: TelegramShareOptions): TelegramSha
         || /[\x00-\x1f\x7f]/.test(source)) return out(400, {error: 'Укажите чат.'});
       const scope = createHash('sha256').update(JSON.stringify([session.accountId, source])).digest('hex').slice(0, 32);
 
-      if (method === 'GET') return out(200, {share: (await current(scope))?.link ?? null});
+      if (method === 'GET') {
+        const active = await current(scope);
+        return out(200, {share: active ? publicLink(active.link) : null});
+      }
       if (method === 'DELETE') {
         await store.remove(scope);
         return new Response(null, {status: 204, headers});
@@ -187,20 +221,20 @@ export function createTelegramShares(options: TelegramShareOptions): TelegramSha
       if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {
         return out(415, {error: 'Ожидается JSON.'});
       }
-      let snapshot: TelegramShareSnapshot | null;
+      let publication: SharePublication | null;
       try {
-        snapshot = await readSnapshot(request);
+        publication = await readSnapshot(request);
       } catch (error) {
         if (error instanceof ShareBodyTooLarge) return out(413, {error: 'Запрос слишком большой.'});
         return out(400, {error: 'Некорректный JSON.'});
       }
-      if (!snapshot) return out(400, {error: 'Проверьте историю чата.'});
+      if (!publication) return out(400, {error: 'Проверьте историю чата.'});
 
       const id = `s_${scope}_${randomBytes(18).toString('base64url')}`;
       const query = new URLSearchParams({startapp: id, mode: 'compact'});
       const link = {id, url: `${target}?${query}`, expiresAt: now() + SHARE_DURATION_MS};
-      await store.write(scope, {link, snapshot});
-      return out(200, {share: link});
+      await store.write(scope, {link, ...publication});
+      return out(200, {share: publicLink(link)});
     } catch {
       return out(503, {error: 'Публикация в Telegram временно недоступна.'});
     }

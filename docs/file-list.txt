@@ -33,6 +33,7 @@ index.html
 package-lock.json
 package.json
 playwright.config.ts
+public/brand/agentik-og.png
 public/brand/agentik-wordmark-dark.svg
 public/brand/agentik-wordmark-light.svg
 public/capture-guard.js
@@ -66,6 +67,7 @@ server/runtime.ts
 server/sites-preview.test.ts
 server/sites-preview.ts
 server/telegram-mini-app.ts
+server/telegram-share-preview.ts
 server/telegram-shares.test.ts
 server/telegram-shares.ts
 src/access-client.ts
@@ -132,6 +134,7 @@ src/components/RemoteProfile.tsx
 src/components/RemoteRooms.tsx
 src/components/room-access.css
 src/components/RoomAccess.tsx
+src/components/RoomCharacters.tsx
 src/components/Rooms.test.tsx
 src/components/Rooms.tsx
 src/components/Scene.tsx
@@ -139,6 +142,8 @@ src/components/ScreenSkeleton.tsx
 src/components/service-notices.css
 src/components/ServiceNotices.tsx
 src/components/ShaderEffects.tsx
+src/components/share-chat-button.css
+src/components/ShareChatButton.tsx
 src/components/telegram-chat-widget.css
 src/components/telegram-share.css
 src/components/TelegramChatWidget.test.tsx
@@ -177,6 +182,7 @@ src/state.ts
 src/styles.css
 src/telegram-share-client.ts
 src/telegram-share-contract.ts
+src/telegram-share-preview.ts
 src/telegram-shell.test.ts
 src/telegram-shell.ts
 src/telegram-widget.tsx

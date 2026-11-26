@@ -12,6 +12,23 @@ const chat = {
 
 beforeEach(() => localStorage.clear());
 
+it('explains how to share a new chat before a conversation is saved', async () => {
+  const user = userEvent.setup();
+  render(<ChatSharing profile={owner} assistantName="Редактор"/>);
+
+  const trigger = screen.getByRole('button', {name:'Поделиться чатом'});
+  expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
+  trigger.focus();
+  await user.keyboard('{Enter}');
+  const dialog = within(screen.getByRole('dialog', {name:'Доступ к чату'}));
+  expect(dialog.getByText(/Отправьте первое сообщение/)).toBeVisible();
+  expect(dialog.queryByRole('button', {name:'Создать группу'})).not.toBeInTheDocument();
+  expect(readLocalRooms(localStorage, owner.id)).toEqual([]);
+
+  await user.keyboard('{Escape}');
+  expect(trigger).toHaveFocus();
+});
+
 it('offers a share link after explicit confirmation and revokes guest access from the same dialog', async () => {
   const user = userEvent.setup();
   render(<ChatSharing conversation={chat} profile={owner} assistantName="Редактор"/>);

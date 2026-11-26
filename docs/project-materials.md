@@ -6,10 +6,11 @@
 
 | Материал | Содержание |
 | --- | --- |
-| [Карта экранов и функций](experience-map.md) | Лендинг, вход, карточки со счётчиками, личные и групповые чаты, избранное, история, бюджет, доски и редактирование файлов в чате, профиль, PRO, договор, офлайн и ошибки |
+| [Карта экранов и функций](experience-map.md) | Лендинг, вход, карточки со счётчиками, личные и групповые чаты, приглашения, персонажи и упоминания, диктовка, избранное, история, бюджет, доски, профиль, PRO, договор, офлайн и ошибки |
 | [UI-кит](https://sergeybukharev.github.io/agentik/#/ui-kit) | Кнопки, поля, меню, карточки, слайдер, подсказки, состояния загрузки и ошибок |
 | [Бренд-кит](https://sergeybukharev.github.io/agentik/#/brand-kit) | Правила логотипа, палитра, копирование SVG и выгрузка PNG в 1× и 2× |
 | [Пресс-кит](https://sergeybukharev.github.io/agentik/#/press-kit) | Описание проекта, логотипы и иллюстрации |
+| [Превью обычных ссылок](../public/brand/agentik-og.png) | Изображение Open Graph 1200 × 630 с логотипом Agentik |
 | [Соглашение](https://sergeybukharev.github.io/agentik/#/agreement) | Условия и локальная отметка о согласии |
 | [Инструкция Telegram](telegram-mini-app.md) | Установка Mini App, экран входа, компактная копия чата и отзыв ссылки |
 
@@ -39,6 +40,7 @@
 | `src/components/LandingHero.tsx`, `src/components/AgentikMark.tsx`, `src/persistent-brand.css` | Баннер, маскот, логотип и пропорции марки |
 | `src/components/KitPages.tsx`, `src/components/BrandLogo.tsx`, `public/brand/` | Компоненты бренд-кита и исходные SVG |
 | `src/components/ChatComposer.tsx`, `PrivateChat.tsx`, `Rooms.tsx` | Сообщения, вложения, микрофон и комнаты |
+| `src/components/ShareChatButton.tsx`, `RoomCharacters.tsx`, `src/local-rooms.ts` | Поделиться чатом, список персонажей, участники группы и упоминания |
 | `src/components/FamilyBudget.tsx`, `src/components/ChatBoard.tsx` | Бюджет и работа с файлами |
 | `src/access-client.ts`, `server/access.ts`, `server/app.ts` | Проверка и хранение сессии и API моделей |
 | `src/telegram-shell.ts`, `widget.html`, `src/telegram-widget.tsx` | Telegram SDK, безопасные отступы и отдельный экран виджета |

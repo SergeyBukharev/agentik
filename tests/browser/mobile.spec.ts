@@ -1,5 +1,85 @@
-import {expect, test} from '@playwright/test';
+import {devices, expect, test} from '@playwright/test';
 import {codeField, enterCode, expectNoHorizontalScroll, messageField, sendButton, workspace} from './helpers';
+
+test('keeps phone navigation, search and chat controls reachable in landscape', async ({browser, browserName, baseURL}) => {
+  const device = browserName === 'webkit' ? 'iPhone 13 landscape' : 'Pixel 7 landscape';
+  const context = await browser.newContext({...devices[device], baseURL, reducedMotion:'reduce'});
+  try {
+    const page = await context.newPage();
+    await page.goto(workspace);
+    await expect(page.getByRole('link', {name:'Войти по коду'})).toBeInViewport({ratio:1});
+    await page.getByRole('link', {name:'Войти по коду'}).click();
+    await expect(page.getByRole('textbox', {name:'Email'})).toBeInViewport({ratio:1});
+    await expect(codeField(page)).toBeInViewport({ratio:1});
+    await expect(page.getByRole('button', {name:'Войти', exact:true})).toBeInViewport({ratio:1});
+    await enterCode(page);
+
+    const navigation = page.getByRole('navigation', {name:'Нижняя навигация'});
+    await expect(navigation).toBeInViewport({ratio:1});
+    await expect(page.getByRole('navigation', {name:'Главная навигация'})).toBeHidden();
+    await navigation.getByRole('link', {name:'Каталог'}).click();
+    const search = page.getByRole('searchbox');
+    for (const viewport of [devices[device].viewport, {width:568, height:320}]) {
+      await page.setViewportSize(viewport);
+      await expect(search).toBeInViewport({ratio:1});
+      const searchBox = (await search.boundingBox())!;
+      expect(searchBox.y + searchBox.height).toBeLessThanOrEqual((await navigation.boundingBox())!.y);
+      await expectNoHorizontalScroll(page);
+    }
+
+    await page.goto(workspace + '#/assistant/writer');
+    for (const viewport of [{width:568, height:320}, devices[device].viewport]) {
+      await page.setViewportSize(viewport);
+      await expect(messageField(page)).toBeInViewport({ratio:1});
+      await expect(sendButton(page)).toBeInViewport({ratio:1});
+      await expect(page.getByRole('link', {name:'Назад к чатам'})).toBeInViewport({ratio:1});
+      const sendBox = (await sendButton(page).boundingBox())!;
+      expect(sendBox.y + sendBox.height).toBeLessThanOrEqual((await navigation.boundingBox())!.y);
+      await expectNoHorizontalScroll(page);
+    }
+  } finally {
+    await context.close();
+  }
+});
+
+test('keeps the chat field and send button above a mobile keyboard', async ({page}) => {
+  await page.setViewportSize({width:390,height:720});
+  await page.goto(workspace + '#/assistant/writer');
+  await enterCode(page);
+  const field = messageField(page);
+  const navigation = page.getByRole('navigation', {name:'Нижняя навигация'});
+  await expect(navigation).toBeVisible();
+  await field.fill('Отправлено над клавиатурой');
+  await page.evaluate(() => {
+    const viewport = window.visualViewport!;
+    Object.defineProperty(viewport,'height',{value:405,configurable:true});
+    Object.defineProperty(viewport,'offsetTop',{value:35,configurable:true});
+    viewport.dispatchEvent(new Event('resize'));
+  });
+  await expect(navigation).toBeHidden();
+  const send = (await sendButton(page).boundingBox())!;
+  expect(send.y + send.height).toBeLessThanOrEqual(440);
+  await sendButton(page).click();
+  await expect(page.locator('.message--user')).toContainText('Отправлено над клавиатурой');
+  await expect(field).toHaveValue('');
+  await expect(navigation).toBeHidden();
+
+  await field.blur();
+  await page.evaluate(() => {
+    Reflect.deleteProperty(window.visualViewport!, 'height');
+    Reflect.deleteProperty(window.visualViewport!, 'offsetTop');
+    window.visualViewport!.dispatchEvent(new Event('resize'));
+  });
+  await expect(navigation).toBeVisible();
+
+  await field.focus();
+  await page.setViewportSize({width:390,height:320});
+  await expect(navigation).toBeHidden();
+  await expect(field).toBeInViewport({ratio:1});
+  await expect(sendButton(page)).toBeInViewport({ratio:1});
+  await page.setViewportSize({width:390,height:720});
+  await expect(navigation).toBeVisible();
+});
 
 test('keeps board files available for editing after reload on mobile', async ({page}) => {
   await page.setViewportSize({width:320,height:740});

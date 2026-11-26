@@ -85,9 +85,9 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
             <span className="chat__subtitle">{mode === 'demo' ? t('Деморежим · ответы по шаблону','Demo · template replies') : t('Режим AI','AI mode')}</span>
           </div>
         </div>
-        {conversation && <div className="chat__header-actions">
-          <ChatSharing conversation={conversation} profile={profile} assistantName={assistant.name} language={language}/>
-          {import.meta.env.VITE_TELEGRAM_MINI_APP === 'true' && telegramShareToken && (
+        <div className="chat__header-actions">
+          <ChatSharing conversation={hasMessages ? conversation : undefined} profile={profile} assistantName={assistant.name} language={language}/>
+          {conversation && import.meta.env.VITE_TELEGRAM_MINI_APP === 'true' && telegramShareToken && (
             <TelegramShare key={conversation.id} source={`chat:${conversation.id}`} token={telegramShareToken} language={language}
               snapshot={() => telegramShareSnapshot(conversation.title.trim() || assistant.name.trim() || t('Чат', 'Chat'), conversation.messages, message => ({
                 author:message.role === 'user' ? profile.name.trim() || t('Участник', 'Participant') : assistant.name.trim() || t('Помощник', 'Assistant'),
@@ -96,8 +96,8 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
                 hasImage:!!message.images?.length,
               }))}/>
           )}
-          <a className="button button--secondary" href={`#/assistant/${assistant.id}`}>{t('Новый разговор','New chat')}</a>
-        </div>}
+          {conversation && <a className="button button--secondary" href={`#/assistant/${assistant.id}`}>{t('Новый разговор','New chat')}</a>}
+        </div>
       </div>
       <ChatBoardTabs assistantId={assistant.id} conversationId={conversation?.id} active="chat"/>
       {assistant.id === 'budget' && <Suspense fallback={null}><FamilyBudget profileId={profile.id}/></Suspense>}

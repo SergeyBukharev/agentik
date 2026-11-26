@@ -195,7 +195,15 @@
   color: var(--category-tint);
 }
 
-@media (max-width: 640px) {
+:root[data-theme='dark'] .category-list__item--active .category-icon {
+  color: var(--brand-ink);
+}
+
+:root[data-theme='dark'] .category-list__item--active .category-icon__background {
+  opacity: 1;
+}
+
+@media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) and (pointer: coarse) {
   :root:not([data-theme='dark']) .category-list__item--active .category-icon {
     color: var(--category-tint);
   }

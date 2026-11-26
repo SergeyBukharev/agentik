@@ -1,6 +1,6 @@
 // @vitest-environment node
 import {expect, it} from 'vitest';
-import {mkdtemp, rm} from 'node:fs/promises';
+import {mkdtemp, readFile, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {isTelegramShareId, type TelegramShareLink} from '../src/telegram-share-contract.ts';
@@ -176,4 +176,61 @@ it('reports unavailable publishing when no bot is configured', async () => {
   const token = await login(api);
   expect((await api(manage('PUT', token, snapshot))).status).toBe(503);
   expect(await (await api(manage('GET', token))).json()).toEqual({share: null});
+});
+
+it('serves a crawler-readable page and PNG for an explicitly published snapshot', async () => {
+  const api = setup({publicOrigin: origin});
+  const token = await login(api);
+  const png = await readFile(new URL('../public/brand/agentik-og.png', import.meta.url));
+  const title = 'Планы <группы> & "заметки"';
+  const share = await publish(api, token, {...snapshot, title, previewPng: png.toString('base64')});
+  const previewUrl = `${origin}/agentik/share/${share.id}`;
+  const imageUrl = previewUrl + '/preview.png';
+  expect(share.previewUrl).toBe(previewUrl);
+  expect(share.url).toBe(`https://t.me/AgentikDemoBot?startapp=${share.id}&mode=compact`);
+  expect(await (await api(manage('GET', token))).json()).toEqual({share});
+  expect(await (await api(read(share.id))).json()).toEqual({...snapshot, title, expiresAt: share.expiresAt});
+
+  const response = await api(new Request(previewUrl, {headers: {'User-Agent': 'TelegramBot'}}));
+  expect(response.status).toBe(200);
+  expect(response.headers.get('Content-Type')).toBe('text/html; charset=utf-8');
+  expect(response.headers.get('Cache-Control')).toBe('no-store');
+  const html = await response.text();
+  expect(html).toContain('<meta property="og:title" content="Планы &lt;группы&gt; &amp; &quot;заметки&quot;">');
+  expect(html).toContain(`<meta property="og:image" content="${imageUrl}">`);
+  expect(html).toContain(`/agentik/widget.html#agentikShare=${share.id}`);
+  expect(html).not.toContain(snapshot.messages[0].text);
+  expect(html).not.toContain('<script');
+
+  const image = await api(new Request(imageUrl));
+  expect(image.status).toBe(200);
+  expect(image.headers.get('Content-Type')).toBe('image/png');
+  expect(image.headers.get('Cache-Control')).toBe('no-store');
+  expect(Buffer.from(await image.arrayBuffer())).toEqual(png);
+  const head = await api(new Request(imageUrl, {method:'HEAD'}));
+  expect(head.status).toBe(200);
+  expect(head.headers.get('Content-Length')).toBe(String(png.length));
+  expect((await head.arrayBuffer()).byteLength).toBe(0);
+
+  expect((await api(manage('DELETE', token))).status).toBe(204);
+  expect((await api(new Request(previewUrl))).status).toBe(404);
+  expect((await api(new Request(imageUrl))).status).toBe(404);
+});
+
+it('expires crawler metadata and its image and preserves legacy publications', async () => {
+  let now = 1_000;
+  const api = setup({publicOrigin: origin, now: () => now});
+  const token = await login(api);
+  const share = await publish(api, token);
+  const previewUrl = `${origin}/agentik/share/${share.id}`;
+  const fallback = await api(new Request(previewUrl + '/preview.png'));
+  expect(share.previewUrl).toBe(previewUrl);
+  expect(fallback.status).toBe(302);
+  expect(fallback.headers.get('Location')).toBe(origin + '/agentik/brand/agentik-og.png');
+  expect((await api(manage('PUT', token, {...snapshot, previewPng:'iVBORw0KGgo='}))).status).toBe(400);
+  expect((await api(new Request(previewUrl))).status).toBe(200);
+  now = share.expiresAt;
+  expect(await (await api(manage('GET', token))).json()).toEqual({share:null});
+  expect((await api(new Request(previewUrl))).status).toBe(404);
+  expect((await api(new Request(previewUrl + '/preview.png'))).status).toBe(404);
 });

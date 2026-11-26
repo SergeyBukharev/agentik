@@ -94,8 +94,9 @@ export function TelegramShare({source, token, snapshot, language}: {
     }
   }
 
-  const shareUrl = share ? 'https://t.me/share/url?' + new URLSearchParams({
-    url:share.url, text:t('Чат из Agentik', 'Agentik chat'),
+  const publicLink = share?.previewUrl ?? share?.url;
+  const shareUrl = publicLink ? 'https://t.me/share/url?' + new URLSearchParams({
+    url:publicLink, text:t('Чат из Agentik', 'Agentik chat'),
   }).toString() : undefined;
 
   return (
@@ -108,8 +109,8 @@ export function TelegramShare({source, token, snapshot, language}: {
       </button>
       {open && <Modal title={title}
         description={t(
-          'Любой человек с этой ссылкой сможет читать копию чата в Telegram. Ссылка действует 24 часа.',
-          'Anyone with this link can view a read-only copy of the chat in Telegram for 24 hours.',
+          'Любой человек с этой ссылкой сможет читать копию чата. Ссылка действует 24 часа.',
+          'Anyone with this link can view a read-only copy of the chat for 24 hours.',
         )}
         onClose={() => {lookup.current?.abort(); setOpen(false);}}>
         <div className="telegram-share-panel">
@@ -120,7 +121,7 @@ export function TelegramShare({source, token, snapshot, language}: {
             <>
               <div className="form">
                 <label className="form__label" htmlFor={fieldId}>{t('Ссылка на чат', 'Chat link')}</label>
-                <input id={fieldId} ref={linkField} className="form__input" readOnly value={share.url}
+                <input id={fieldId} ref={linkField} className="form__input" readOnly value={publicLink}
                   onFocus={event => event.currentTarget.select()}/>
               </div>
               <div className="telegram-share-panel__actions">
@@ -137,10 +138,12 @@ export function TelegramShare({source, token, snapshot, language}: {
                   }}>
                   <Send size={17} aria-hidden="true"/>{t('Отправить в Telegram', 'Send to Telegram')}
                 </a>
-                <button type="button" className="button button--secondary" disabled={!!pending} onClick={() => void copyLink(share.url)}>
+                <button type="button" className="button button--secondary" disabled={!!pending} onClick={() => void copyLink(publicLink ?? share.url)}>
                   <Copy size={17} aria-hidden="true"/>{t('Скопировать ссылку', 'Copy link')}
                 </button>
               </div>
+              {share.previewUrl && <a href={pending ? undefined : share.url} target="_blank" rel="noopener noreferrer"
+                className="button button--text" aria-disabled={pending ? true : undefined}>{t('Открыть в Telegram', 'Open in Telegram')}</a>}
               <button type="button" className="button button--text telegram-share-panel__revoke" disabled={!!pending}
                 onClick={() => void changeLink('DELETE')}>{t('Отозвать ссылку', 'Revoke link')}</button>
             </>

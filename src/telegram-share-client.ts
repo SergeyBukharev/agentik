@@ -1,8 +1,9 @@
 import {
   isTelegramShareId, MAX_TELEGRAM_SHARE_AUTHOR_LENGTH, MAX_TELEGRAM_SHARE_MESSAGES,
-  MAX_TELEGRAM_SHARE_TEXT_LENGTH, MAX_TELEGRAM_SHARE_TITLE_LENGTH, TELEGRAM_SHARE_PREFIX,
+  MAX_TELEGRAM_SHARE_TEXT_LENGTH, MAX_TELEGRAM_SHARE_TITLE_LENGTH, TELEGRAM_SHARE_PAGE_PREFIX, TELEGRAM_SHARE_PREFIX,
   type TelegramShareLink, type TelegramShareMessage, type TelegramShareSnapshot, type TelegramShareView,
 } from './telegram-share-contract';
+import {createTelegramPreview} from './telegram-share-preview';
 
 const apiUrl = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '') + TELEGRAM_SHARE_PREFIX;
 
@@ -61,8 +62,18 @@ function isShareLink(share: TelegramShareLink | null | undefined): share is Tele
   }
 }
 
+function getPreviewUrl(share: TelegramShareLink) {
+  if (typeof share.previewUrl !== 'string') return;
+  try {
+    const url = new URL(share.previewUrl);
+    if (url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash
+      && url.pathname === TELEGRAM_SHARE_PAGE_PREFIX + '/' + share.id) return url.href;
+  } catch { /* Fall back to the verified direct Mini App link. */ }
+}
+
 export async function manageTelegramShare(source: TelegramShareSource, token: string, action: ShareAction): Promise<TelegramShareLink | null> {
   const snapshot = action.method === 'PUT' ? action.snapshot : undefined;
+  const previewPng = snapshot && await createTelegramPreview(snapshot.title);
   const data = await request('?source=' + encodeURIComponent(source), {
     method:action.method,
     signal:action.method === 'GET' ? action.signal : undefined,
@@ -70,11 +81,15 @@ export async function manageTelegramShare(source: TelegramShareSource, token: st
       Authorization: 'Bearer ' + token,
       ...(snapshot && {'Content-Type': 'application/json'}),
     },
-    body:snapshot && JSON.stringify(snapshot),
+    body:snapshot && JSON.stringify({...snapshot, previewPng}),
   });
   if (action.method === 'DELETE' || (action.method === 'GET' && data?.share === null)) return null;
   if (!isShareLink(data?.share)) throw new Error('Invalid Telegram share link');
-  if (data.share.expiresAt > Date.now()) return data.share;
+  if (data.share.expiresAt > Date.now()) {
+    const {id, url, expiresAt} = data.share;
+    const previewUrl = getPreviewUrl(data.share);
+    return {id, url, expiresAt, ...(previewUrl && {previewUrl})};
+  }
   if (action.method === 'GET') return null;
   throw new Error('Telegram share has expired');
 }

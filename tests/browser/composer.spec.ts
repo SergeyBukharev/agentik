@@ -62,31 +62,59 @@ test('opens PRO after the second accepted message, keeps the third draft and sho
   await expect(page.getByLabel('Demo token balance')).toHaveText('0');
 });
 
-test('holds K to dictate into an editable draft and renders the text reveal',async({page})=>{
+test('shows expanding waves while dictating and reveals only the new text inside the draft',async({page})=>{
   await page.addInitScript(()=>{
     class FakeRecognition {
       onstart?:()=>void;
       onend?:()=>void;
       onresult?:(event:unknown)=>void;
       start(){queueMicrotask(()=>this.onstart?.());}
-      stop(){this.onresult?.({resultIndex:0,results:[{isFinal:true,0:{transcript:'Черновик из диктовки'}}]});this.onend?.();}
+      stop(){this.onresult?.({resultIndex:0,results:[{isFinal:true,0:{transcript:'Кофе, чай 👩‍💻'}}]});this.onend?.();}
       abort(){}
     }
     Object.defineProperty(window,'SpeechRecognition',{value:FakeRecognition});
   });
   await page.goto(workspace+'#/assistant/writer');
   await enterCode(page);
+  const field = messageField(page);
+  await field.fill('Покупки:');
   const microphone=page.getByRole('button',{name:'Удерживайте для диктовки'});
+  const waves = microphone.locator('.composer__mic-waves');
+  const preview = page.locator('.composer__field .composer__dictation-preview');
   await microphone.focus();
   await page.keyboard.down('k');
   await expect(microphone).toHaveAttribute('data-recording','true');
+  await expect(waves).toBeVisible();
+  expect(await waves.evaluate(el => getComputedStyle(el, '::before').animationPlayState)).toBe('running');
   await page.keyboard.up('k');
-  await expect(messageField(page)).toHaveValue('Черновик из диктовки');
-  await expect(page.locator('.transcript__letter').first()).toBeVisible();
-  await microphone.dispatchEvent('pointerdown',{button:0, pointerId:1, pointerType:'touch'});
-  await expect(microphone).toHaveAttribute('data-recording','true');
-  await microphone.dispatchEvent('pointerup',{button:0, pointerId:1, pointerType:'touch'});
-  await expect(messageField(page)).toHaveValue('Черновик из диктовки Черновик из диктовки');
+  await expect(field).toHaveValue('Покупки: Кофе, чай 👩‍💻');
+  await expect(preview).toHaveText('Покупки: Кофе, чай 👩‍💻');
+  await expect(preview.locator('.composer__dictation-letter').first()).toHaveText('К');
+  await expect(preview.locator('.composer__dictation-letter').last()).toHaveText('👩‍💻');
+  await expect(microphone).toHaveAttribute('data-recording','false');
+  await expect(preview).toHaveCount(0);
+  await field.fill('Исправленный текст');
+  await expect(field).toHaveValue('Исправленный текст');
+
+  await page.setViewportSize({width:360,height:660});
+  await microphone.dispatchEvent('pointerdown',{button:0,pointerId:1,pointerType:'touch'});
+  await expect(microphone).toHaveAttribute('aria-pressed','true');
+  await expect(waves).toBeVisible();
+  await microphone.dispatchEvent('pointerup',{button:0,pointerId:2,pointerType:'touch'});
+  await expect(microphone).toHaveAttribute('aria-pressed','true');
+  await microphone.dispatchEvent('pointerup',{button:0,pointerId:1,pointerType:'touch'});
+  await expect(microphone).toHaveAttribute('aria-pressed','false');
+  await expect(waves).toBeHidden();
+  await expect(field).toHaveValue('Исправленный текст Кофе, чай 👩‍💻');
+  await expectNoHorizontalScroll(page);
+
+  await microphone.focus();
+  await page.keyboard.down('Space');
+  await expect(microphone).toHaveAttribute('aria-pressed','true');
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.up('Space');
+  await expect(microphone).toHaveAttribute('aria-pressed','false');
+  await expect(field).toHaveValue('Исправленный текст Кофе, чай 👩‍💻 Кофе, чай 👩‍💻');
 });
 
 test('shows unlimited PRO balance without a paywall trigger', async ({page}) => {

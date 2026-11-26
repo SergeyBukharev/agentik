@@ -89,3 +89,18 @@
     gap: 12px;
   }
 }
+
+@media (min-width: 500px) and (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) and (pointer: coarse) {
+  .public-landing .public-landing__header { margin-block-end: 18px; }
+  .public-landing .hero.hero--intro {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    gap: 12px;
+    padding: 18px clamp(16px, 5vw, 40px);
+    text-align: start;
+  }
+  .public-landing .hero__content { justify-self: start; }
+  .public-landing .hero__title { font-size: clamp(27px, 4.8vw, 42px); }
+  .public-landing .hero__label { margin-block-end: 8px; }
+  .public-landing .hero__description { margin: 9px 0 13px; }
+  .public-landing .hero-mark { width: min(100%, 180px); }
+}

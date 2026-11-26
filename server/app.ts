@@ -1,7 +1,7 @@
 import {createAccess, type AccessConfig} from './access.ts';
 import {isChatImage, isChatModel, type ChatImage, type ChatModel} from '../src/chat-media.ts';
 import {isChatDocument, MAX_MEDIA_CHAT_BODY_BYTES, MAX_CHAT_BODY_BYTES, MAX_CHAT_MESSAGES, MAX_CHAT_MESSAGE_LENGTH, type ChatDocument} from '../src/chat-contract.ts';
-import {TELEGRAM_SHARE_PREFIX} from '../src/telegram-share-contract.ts';
+import {TELEGRAM_SHARE_PAGE_PREFIX, TELEGRAM_SHARE_PREFIX} from '../src/telegram-share-contract.ts';
 import type {TelegramShareHandler} from './telegram-shares.ts';
 
 type Provider = {apiKey?:string;apiBase?:string;model?:string;vision?:boolean;authScheme?:'Bearer'|'Api-Key';project?:string};
@@ -46,7 +46,8 @@ export function createHandler(config:ServerConfig) {
    return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Methods':methods,'Access-Control-Allow-Headers':'Authorization, Content-Type'}});
   }
   if (path.startsWith('/api/access/') && access) return access.respond(req, path, clientAddress, headers);
-  if (telegramRoute && config.telegramShares) {
+  const telegramPreviewRoute = path.startsWith(TELEGRAM_SHARE_PAGE_PREFIX + '/');
+  if ((telegramRoute || telegramPreviewRoute) && config.telegramShares) {
    const token = telegramOwnerRoute ? req.headers.get('Authorization')?.match(/^Bearer (\S+)$/)?.[1] : undefined;
    return config.telegramShares(req, token ? access?.verify(token) ?? null : null, headers);
   }

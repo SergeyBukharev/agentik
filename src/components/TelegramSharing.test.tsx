@@ -136,3 +136,20 @@ it('shows Telegram sharing only for saved chats and room owners in the Telegram 
     title:'План поездки', messages:[{author:'Борис', text:'Сообщение в комнате', role:'user'}],
   });
 });
+
+it('shares the web preview while keeping the direct Mini App link available', async () => {
+  const previewUrl = 'https://example.test/agentik/share/' + shareId;
+  vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+    share:{id:shareId, url:link, previewUrl, expiresAt:Date.now()+86_400_000},
+  })));
+  const user = userEvent.setup();
+  render(privateChat(chat));
+  await user.click(screen.getByRole('button', {name:shareLabel}));
+  const dialog = within(await screen.findByRole('dialog'));
+  const send = await dialog.findByRole('link', {name:'Отправить в Telegram'});
+  expect(new URL((send as HTMLAnchorElement).href).searchParams.get('url')).toBe(previewUrl);
+  expect(dialog.getByRole('textbox', {name:'Ссылка на чат'})).toHaveValue(previewUrl);
+  expect(dialog.getByRole('link', {name:'Открыть в Telegram'})).toHaveAttribute('href', link);
+  await user.click(dialog.getByRole('button', {name:'Скопировать ссылку'}));
+  expect(await navigator.clipboard.readText()).toBe(previewUrl);
+});

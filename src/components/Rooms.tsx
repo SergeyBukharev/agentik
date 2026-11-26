@@ -1,16 +1,21 @@
 import {memo, useState, type FormEvent} from 'react';
-import {Link2, LockKeyhole, Plus, Users} from 'lucide-react';
+import {Bot, LockKeyhole, Plus, Users} from 'lucide-react';
+import type {Assistant} from '../catalog';
 import type {ChatImage} from '../chat-media';
 import type {Language} from '../language';
 import {
-  joinLocalRoom, makeRoom, postLocalMessage, renewLocalInvite, setLocalRoomPrivacy, type LocalRoom,
+  joinLocalRoom, makeRoom, postLocalBotReply, postLocalMessage, readLocalRooms, renewLocalInvite,
+  roomMentionTargets, setLocalRoomPrivacy, splitRoomMentions, type LocalRoom, type LocalRoomMessage,
 } from '../local-rooms';
+import {replyTo, type ReplyOptions} from '../services';
 import type {LocalProfile} from '../session';
 import {telegramShareSnapshot} from '../telegram-share-client';
 import {ChatComposer, MessageImages} from './ChatComposer';
 import {Modal} from './Modal';
 import {RoomAccessDialog, roomError, useLocalRooms} from './RoomAccess';
+import {RoomCharacters} from './RoomCharacters';
 import {Scene} from './Scene';
+import {ShareChatButton} from './ShareChatButton';
 import {WelcomeTitle} from './ShaderEffects';
 import {TelegramShare} from './TelegramShare';
 
@@ -24,6 +29,9 @@ type RoomsProps = {
   messagePrice?: number;
   billMessage?: (commit:()=>boolean) => Promise<boolean>;
   telegramShareToken?: string;
+  customCharacters?: readonly Assistant[];
+  characterTemplates?: readonly Assistant[];
+  replyOptions?: Pick<ReplyOptions, 'mode' | 'model' | 'token'>;
 };
 
 const RoomMessages = memo(function RoomMessages({messages, profileId, language}: {
@@ -32,16 +40,23 @@ const RoomMessages = memo(function RoomMessages({messages, profileId, language}:
   language: Language;
 }) {
   const clock = new Intl.DateTimeFormat(language, {hour:'2-digit', minute:'2-digit'});
-  return messages.map(message => (
-    <article className={'message'+(message.userId === profileId ? ' message--user' : '')} key={message.id}>
-      <span className="message__author">{message.name} · {clock.format(message.createdAt)}</span>
-      {message.body && <p className="message__body">{message.body}</p>}
-      <MessageImages images={message.images}/>
-    </article>
-  ));
+  return messages.map(message => {
+    const addressed = message.userId !== profileId && message.mentions?.some(mention => mention.kind === 'member' && mention.id === profileId);
+    return (
+      <article className={'message'+(message.userId === profileId ? ' message--user' : '')} key={message.id}>
+        <span className="message__author">{message.name} · {clock.format(message.createdAt)}
+          {addressed && <span className="message__addressed">{language === 'en' ? 'You were mentioned' : 'Вас упомянули'}</span>}
+        </span>
+        {message.body && <p className="message__body">{splitRoomMentions(message.body,message.mentions).map(({text,mention},index) =>
+          mention ? <mark className="message__mention" key={index}>{text}</mark> : text)}</p>}
+        <MessageImages images={message.images}/>
+      </article>
+    );
+  });
 });
 
-export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCreate, messagePrice, billMessage, telegramShareToken}: RoomsProps) {
+export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCreate, messagePrice, billMessage, telegramShareToken,
+  customCharacters = [], characterTemplates = [], replyOptions}: RoomsProps) {
   const t = (ru: string, en: string) => language === 'en' ? en : ru;
   const {rooms, storageUnavailable} = useLocalRooms(profile.id);
   const [error, setError] = useState('');
@@ -49,6 +64,8 @@ export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCr
   const [draft, setDraft] = useState('');
   const [creating, setCreating] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
+  const [charactersOpen, setCharactersOpen] = useState(false);
+  const [pendingReplies, setPendingReplies] = useState(0);
   const room = rooms.find(item => item.id === roomId);
   const openRoom = (item: LocalRoom) => {location.hash = '#/rooms/' + item.id;};
   const createLabel = t('Создать комнату', 'Create a group');
@@ -84,17 +101,43 @@ export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCr
     }
   }
 
-  function send(target: LocalRoom, images: ChatImage[], anchor: HTMLElement | null): boolean {
+  async function replyToMentions(roomId: string, sent: LocalRoomMessage) {
+    const targets = sent.mentions?.filter(mention => mention.kind === 'bot');
+    if (!targets?.length) return;
+    setPendingReplies(count => count + 1);
     try {
-      postLocalMessage(localStorage, profile, target.id, draft, Date.now(), images);
-      setDraft('');
-      setError('');
-      onSend?.(anchor);
-      return true;
+      for (const mention of targets) {
+        // Access and the roster can change while another character is replying.
+        const current = readLocalRooms(localStorage,profile.id).find(item => item.id === roomId);
+        const bot = current?.bots?.find(item => item.id === mention.id);
+        if (!bot || !current?.messages.some(message => message.id === sent.id)) continue;
+        try {
+          const reply = await replyTo(bot,[{role:'user',content:sent.body,images:sent.images}],
+            {...(replyOptions ?? {mode:'demo',token:''}),language});
+          postLocalBotReply(localStorage,profile,roomId,bot.id,sent.id,reply);
+        } catch {
+          setError(t(`«${bot.name}» не удалось ответить. Попробуйте упомянуть персонажа ещё раз.`,
+            `${bot.name} could not reply. Try mentioning the character again.`));
+        }
+      }
+    } catch (cause) {
+      setError(roomError(cause,language));
+    } finally { setPendingReplies(count => count - 1); }
+  }
+
+  function send(target: LocalRoom, images: ChatImage[], anchor: HTMLElement | null): boolean {
+    let sent: LocalRoomMessage;
+    try {
+      sent = postLocalMessage(localStorage, profile, target.id, draft, Date.now(), images);
     } catch (cause) {
       setError(roomError(cause, language));
       return false;
     }
+    setDraft('');
+    setError('');
+    onSend?.(anchor);
+    void replyToMentions(target.id,sent);
+    return true;
   }
 
   if (joinToken) return (
@@ -128,6 +171,7 @@ export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCr
 
   if (room) {
     const owner = room.ownerId === profile.id;
+    const botCount = room.bots?.length ?? 0;
     const openAccess = () => {
       setError('');
       setAccessOpen(true);
@@ -140,12 +184,14 @@ export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCr
             <h1 className="chat__title">{room.title}</h1>
             <span className="chat__subtitle">{room.private ? t('Приватный чат', 'Private chat') : t('Участники', 'Members')+' · '+room.members.length}</span>
           </div>
-          <div className="chat__actions">
-            <button type="button" className="button button--secondary chat-share" onClick={openAccess}
-              aria-label={room.private ? t('Управление доступом', 'Manage access') : t('Пригласить участника', 'Invite a member')}>
-              {room.private ? <LockKeyhole size={17}/> : <Link2 size={17}/>}
-              <span>{room.private ? t('Доступ', 'Access') : t('Пригласить', 'Invite')}</span>
+          <div className="chat__header-actions">
+            <button type="button" className="button button--secondary room-characters-button" aria-haspopup="dialog"
+              aria-label={t('Персонажи в чате','Chat characters')} onClick={() => setCharactersOpen(true)}>
+              <Bot size={18} aria-hidden="true"/>{t('Персонажи','Characters')}
+              {botCount > 0 && <span className="room-characters-button__count">{botCount}</span>}
             </button>
+            <ShareChatButton label={t('Поделиться','Share')} accessibleLabel={t('Поделиться группой','Share group')}
+              expanded={accessOpen} onClick={openAccess}/>
             {import.meta.env.VITE_TELEGRAM_MINI_APP === 'true' && owner && telegramShareToken && (
               <TelegramShare key={room.id} source={`room:${room.id}`} token={telegramShareToken} language={language}
                 snapshot={() => telegramShareSnapshot(room.title.trim() || t('Группа', 'Group'), room.messages, message => ({
@@ -164,13 +210,17 @@ export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCr
             <p className="chat-welcome__text">{t('Напишите сообщение или пригласите другого участника.', 'Write a message or invite another member.')}</p>
           </div>}
           <RoomMessages messages={room.messages} profileId={profile.id} language={language}/>
+          {pendingReplies > 0 && <p className="chat__loading" role="status"><span/>
+            {t('Персонаж готовит ответ…','A character is preparing a reply…')}</p>}
         </div>
         {error && <p className="notice notice--error" role="alert">{error}</p>}
         <ChatComposer draft={draft} onDraft={setDraft} onSubmit={(images, anchor) => {
           const commit = () => send(room,images,anchor);
           return billMessage ? billMessage(commit) : commit();
         }}
-          price={messagePrice} messageId="room-message" language={language}/>
+          price={messagePrice} messageId="room-message" language={language} mentions={roomMentionTargets(room)}/>
+        {charactersOpen && <RoomCharacters room={room} profile={profile} language={language}
+          custom={customCharacters} templates={characterTemplates} onClose={() => setCharactersOpen(false)}/>}
         {accessOpen && <RoomAccessDialog
           room={room}
           currentGroup

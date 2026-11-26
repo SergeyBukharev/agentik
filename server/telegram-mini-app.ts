@@ -5,6 +5,7 @@ import {extname, isAbsolute, relative, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createRuntime, nodeApi} from './runtime.ts';
 import {createTelegramShares} from './telegram-shares.ts';
+import {TELEGRAM_SHARE_PAGE_PREFIX} from '../src/telegram-share-contract.ts';
 
 const base = '/agentik/';
 const files = await realpath(fileURLToPath(new URL('./dist/', import.meta.url)));
@@ -14,6 +15,7 @@ const telegram = createTelegramShares({
   directory: resolve(process.env.TELEGRAM_SHARE_DIR || 'data/telegram-shares'),
   botUsername: process.env.TELEGRAM_BOT_USERNAME,
   miniAppShortName: process.env.TELEGRAM_MINI_APP_SHORT_NAME,
+  publicOrigin: process.env.ALLOWED_ORIGIN?.split(',').map(origin => origin.trim()).find(origin => origin.startsWith('https://')),
 });
 const api = nodeApi(createRuntime(process.env, port, telegram));
 const contentTypes: Record<string, string> = {
@@ -28,7 +30,7 @@ function inside(root: string, path: string) {
 
 async function respond(request: IncomingMessage, response: ServerResponse) {
   const path = new URL(request.url ?? '/', 'http://localhost').pathname;
-  if (path.startsWith('/api/')) return api(request, response);
+  if (path.startsWith('/api/') || path.startsWith(TELEGRAM_SHARE_PAGE_PREFIX + '/')) return api(request, response);
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     response.writeHead(405, {Allow: 'GET, HEAD'}).end();
     return;
