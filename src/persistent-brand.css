@@ -1,24 +1,28 @@
 :root {
-  --persistent-brand-inline: max(18px, env(safe-area-inset-left));
+  --persistent-brand-gutter: 18px;
+  --persistent-brand-inline: max(var(--persistent-brand-gutter), env(safe-area-inset-left), env(safe-area-inset-right));
   --persistent-brand-top: max(15px, env(safe-area-inset-top));
   --persistent-brand-height: 44px;
 }
 
-.persistent-brand {
+.persistent-brand-bar {
   position: fixed;
   z-index: 9999;
   inset-block-start: var(--persistent-brand-top);
   inset-inline-start: var(--persistent-brand-inline);
+  display: flex;
+  gap: 8px;
+}
+.persistent-brand, .persistent-brand__access {
   min-height: var(--persistent-brand-height);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 9px 4px 4px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
   color: var(--ink);
 }
+.persistent-brand { gap: 8px; padding: 4px 9px 4px 4px; }
 .persistent-brand[data-tone='access'] {
   background: #232a21;
   border-color: transparent;
@@ -27,9 +31,17 @@
 }
 
 :root[data-theme='dark'] .persistent-brand { border-color: transparent; }
+.persistent-brand__access {
+  min-inline-size: var(--persistent-brand-height);
+  justify-content: center;
+  background: color-mix(in oklch, #232a21 86%, var(--brand-lime, #d4f58a));
+  border-color: color-mix(in oklch, #232a21 63%, var(--brand-lime, #d4f58a));
+}
 .persistent-brand__mark { display: block; border-radius: 10px; flex: 0 0 auto; }
 .persistent-brand__eyes { transform-box: fill-box; transform-origin: center; }
 .persistent-brand__word {
+  position: relative;
+  inset-block-start: -3px;
   font: 800 25px/1 'Manrope Variable', sans-serif;
   letter-spacing: -.045em;
 }
@@ -62,7 +74,6 @@
 .persistent-brand__lock {
   width: 22px;
   height: 22px;
-  margin-inline-start: 2px;
   color: #bad0ae;
   overflow: visible;
   transition: color .24s ease;
@@ -75,8 +86,13 @@
 .persistent-brand__lock[data-lock='open'] .persistent-brand__shackle { transform: translateY(-1px) rotate(39deg); }
 
 .public-landing__header {
-  min-height: var(--persistent-brand-height);
-  justify-content: flex-end;
+  min-block-size: var(--persistent-brand-height);
+}
+.public-landing__sign-in {
+  position: fixed;
+  z-index: 10;
+  inset-block-start: var(--persistent-brand-top);
+  inset-inline-end: var(--persistent-brand-inline);
 }
 .public-landing {
   padding-block-start: var(--persistent-brand-top);
@@ -122,7 +138,7 @@
 
 @media(max-width:640px) {
   :root {
-    --persistent-brand-inline: max(13px, env(safe-area-inset-left));
+    --persistent-brand-gutter: 13px;
     --persistent-brand-top: max(10px, env(safe-area-inset-top));
   }
   .topbar { justify-content: flex-end; min-height: calc(var(--persistent-brand-top) + var(--persistent-brand-height) + 6px); }

@@ -11,7 +11,7 @@ export function PublicLanding() {
   return (
     <main className="public-landing">
       <header className="public-landing__header">
-        <a className="button button--secondary" href="#/login" onFocus={() => prefetchScreen('login')}
+        <a className="button button--secondary public-landing__sign-in" href="#/login" onFocus={() => prefetchScreen('login')}
           onPointerEnter={() => prefetchScreen('login')}>{t('Войти','Sign in')}</a>
       </header>
       <LandingHero/>

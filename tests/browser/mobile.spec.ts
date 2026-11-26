@@ -1,6 +1,28 @@
 import {expect, test} from '@playwright/test';
 import {codeField, enterCode, expectNoHorizontalScroll, messageField, sendButton, workspace} from './helpers';
 
+test('keeps the landing sign-in fixed opposite the logo on narrow and wide screens', async ({page}) => {
+  await page.goto(workspace);
+  const login = page.getByRole('link', {name: 'Войти', exact: true});
+  const logo = page.getByRole('link', {name: 'Agentik — главная'});
+  for (const width of [320, 1440]) {
+    await page.setViewportSize({width, height: 500});
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const brand = (await logo.boundingBox())!;
+    const button = (await login.boundingBox())!;
+    const viewport = await page.evaluate(() => document.documentElement.clientWidth);
+    expect(Math.abs(viewport - button.x - button.width - brand.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(button.y - brand.y)).toBeLessThanOrEqual(1);
+
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(80);
+    await expect.poll(async () => (await login.boundingBox())?.y).toBe(button.y);
+    await expect(login).toBeInViewport();
+  }
+  await login.click();
+  await expect(codeField(page)).toBeVisible();
+});
+
 test('keeps the landing, code form, catalog, chat, modal and 404 inside the viewport', async ({page}) => {
   const widths = [320, 360, 390, 768];
   const name = 'СверхдлинноеНазвание'.repeat(3);

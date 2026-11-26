@@ -3,6 +3,7 @@ import {LayoutGrid, Palette, FileText} from 'lucide-react';
 import {useUi} from '../language';
 import {kitPages, kitPaths} from '../kits';
 import {allowsMotion} from './ShaderEffects';
+import {AgentikMark} from './AgentikMark';
 
 export type BrandLock = 'closed' | 'open';
 const kitIcons = {'ui-kit': LayoutGrid, 'brand-kit': Palette, 'press-kit': FileText};
@@ -83,6 +84,7 @@ export function PersistentBrand({href, route, onAccess, lock}: {
 
   return (
     <>
+    <div className="persistent-brand-bar">
     <a className="persistent-brand" href={href} data-tone={onAccess ? 'access' : 'default'} ref={anchor}
       aria-label={t('Agentik — главная', 'Agentik home')} aria-haspopup="menu" aria-expanded={menuOpen}
       aria-keyshortcuts="Shift+F10" onClick={event => {
@@ -97,25 +99,21 @@ export function PersistentBrand({href, route, onAccess, lock}: {
       }}>
       <svg ref={mark} className="persistent-brand__mark" viewBox="0 0 48 48"
         width="35" height="35" aria-hidden="true" focusable="false">
-        <rect width="48" height="48" rx="14" fill="var(--brand-lime, #d4f58a)"/>
-        <path d="M24 6v5" stroke="var(--brand-ink, #242822)" strokeWidth="3" strokeLinecap="round"/>
-        <rect x="9" y="10" width="30" height="30" rx="12" fill="var(--brand-ink, #242822)"/>
-        <g ref={eyes} className="persistent-brand__eyes" fill="var(--brand-lime, #d4f58a)">
-          <rect x="16" y="18" width="5" height="9" rx="2.5"/>
-          <rect x="27" y="18" width="5" height="9" rx="2.5"/>
-        </g>
-        <path d="M18.5 31.5q5.5 5.5 11 0" fill="none" stroke="var(--brand-lime, #d4f58a)" strokeWidth="2.8" strokeLinecap="round"/>
+        <AgentikMark eyesClassName="persistent-brand__eyes" eyesRef={eyes}/>
       </svg>
       <span className="persistent-brand__word">agentik</span>
-      {lock && (
+    </a>
+    {lock && (
+      <span className="persistent-brand__access" role="img" aria-label={t('Страница входа','Sign-in page')} aria-current="page">
         <svg className="persistent-brand__lock" data-lock={lock} viewBox="0 0 24 24" fill="none" aria-hidden="true"
           stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
           <path className="persistent-brand__shackle" d="M8.25 12V8a3.75 3.75 0 1 1 7.5 0v4"/>
           <rect x="5.5" y="12" width="13" height="8.5" rx="2.2"/>
           <path d="M12 15.6v1.45"/>
         </svg>
-      )}
-    </a>
+      </span>
+    )}
+    </div>
     {menuOpen && <div className="persistent-brand-menu" role="menu" aria-label={t('Материалы Agentik','Agentik kits')}
       ref={menu} onKeyDown={menuKeys}>
       {kitPaths.map(kit => {

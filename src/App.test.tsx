@@ -15,7 +15,43 @@ beforeEach(() => {
   saveAccess({accountId: account, token: 'v1.fixture.' + 'a'.repeat(43), expiresAt: Date.now() + ACCESS_DURATION_MS, plan:'pro'});
   vi.stubGlobal('fetch', vi.fn(async () => new Response(null, {status: 204})));
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
+it('opens a protected deep link in the hosted preview when the static build has no access API', () => {
+  localStorage.clear();
+  sessionStorage.clear();
+  vi.stubEnv('VITE_ACCESS_PREVIEW_URL', 'https://preview.example.test/agentik/');
+  history.replaceState(null, '', import.meta.env.BASE_URL + '#/assistant/writer');
+  render(<App/>);
+  expect(screen.getByRole('link', {name:'Войти в превью'})).toHaveAttribute('href', 'https://preview.example.test/agentik/#/assistant/writer');
+  expect(screen.queryByRole('textbox', {name:'Код доступа'})).toBeNull();
+});
+it('hides onboarding after the first saved chat and shows only configured announcements on home', async () => {
+ history.replaceState(null, '', import.meta.env.BASE_URL + '#/');
+ const user = userEvent.setup();
+ const view = render(<App/>);
+ expect(screen.getByRole('heading', {name:/Меньше рутины/})).toBeInTheDocument();
+ await user.click(screen.getByRole('link', {name:'Открыть: Редактор'}));
+ await user.type(await screen.findByRole('textbox', {name:'Ваше сообщение'}), 'Первый разговор');
+ await user.click(screen.getByRole('button', {name:'Отправить сообщение'}));
+ await screen.findByText(/Это демонстрационный ответ/);
+ await user.click(screen.getByRole('link', {name:/^Для вас$/}));
+ expect(await screen.findByRole('heading', {name:'Найдите своего помощника', level:1})).toBeInTheDocument();
+ expect(screen.queryByRole('heading', {name:/Меньше рутины/})).toBeNull();
+
+ view.unmount();
+ vi.stubEnv('VITE_SERVICE_ANNOUNCEMENTS', JSON.stringify([
+  {id:'offer',kind:'promotion',title:'Пробная акция',description:'Подробности акции'},
+  {id:'notice',kind:'important',title:'Важное обновление',description:'Информация от Agentik'},
+ ]));
+ render(<App/>);
+ expect(screen.getByRole('heading', {name:'Важное обновление'})).toBeInTheDocument();
+ expect(screen.queryByRole('heading', {name:/Меньше рутины/})).toBeNull();
+ await user.click(screen.getByRole('button', {name:'Следующее объявление'}));
+ expect(screen.getByRole('heading', {name:'Пробная акция'})).toBeInTheDocument();
+});
 it('searches assistants and explains empty results',async()=>{
  const u=userEvent.setup();render(<App/>);
  await u.type(screen.getByRole('searchbox'), 'резюме');

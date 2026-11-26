@@ -5,6 +5,7 @@ import {CHAT_MODELS, prepareChatImage, type ChatImage, type ChatModel} from '../
 import {useUi, type Language} from '../language';
 import {useDictation} from '../useDictation';
 import {AgentSelect} from './AgentSelect';
+import {Tooltip} from './Tooltip';
 import {ModelIcon} from './ModelIcon';
 
 const modelLabels: Record<ChatModel, [string, string]> = {
@@ -141,15 +142,20 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
                 event.preventDefault(); void submit();
               }
             }}/>
-          <button type="button" className="icon-button composer__expand" aria-label={expandLabel} title={expandLabel}
-            aria-controls={messageId} aria-expanded={expanded} onClick={() => setExpanded(current => !current)}>
-            {expanded ? <ArrowDownLeft size={18} aria-hidden="true"/> : <ArrowUpRight size={18} aria-hidden="true"/>}
-          </button>
+          <Tooltip label={expandLabel}>
+            <button type="button" className="icon-button composer__expand" aria-label={expandLabel}
+              aria-controls={messageId} aria-expanded={expanded} onClick={() => setExpanded(current => !current)}>
+              {expanded ? <ArrowDownLeft size={18} aria-hidden="true"/> : <ArrowUpRight size={18} aria-hidden="true"/>}
+            </button>
+          </Tooltip>
         </div>
         <div className="composer__toolbar">
           <input ref={input} type="file" hidden accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
             onChange={event => {const file = event.target.files?.[0]; event.target.value = ''; void attach(file);}}/>
-          <button type="button" className="icon-button" disabled={locked || loading} onClick={() => input.current?.click()} aria-label={t('Прикрепить изображение', 'Attach image')} title={t('Прикрепить изображение', 'Attach image')}><ImagePlus size={20}/></button>
+          <Tooltip label={t('Прикрепить изображение', 'Attach image')}>
+            <button type="button" className="icon-button" disabled={locked || loading} onClick={() => input.current?.click()}
+              aria-label={t('Прикрепить изображение', 'Attach image')}><ImagePlus size={20}/></button>
+          </Tooltip>
           {model && onModel && <div className="composer__model">
             <AgentSelect label={t('Модель', 'Model')} value={model} disabled={locked} side="top" onChange={onModel}
               options={CHAT_MODELS.map(value => ({
@@ -159,18 +165,19 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
               }))}/>
           </div>}
           {loading && <span className="composer__preparing" role="status">{t('Загрузка…','Loading…')}</span>}
-          <button type="button" className="icon-button composer__mic" data-recording={recording}
-            disabled={locked || disabled} aria-label={microphoneLabel} aria-pressed={recording}
-            title={microphoneLabel+' · K / Alt+K'}
-            onPointerDown={event => {
-              if (event.button !== 0) return;
-              if (microphone.start()) {
-                try {event.currentTarget.setPointerCapture?.(event.pointerId);} catch {}
-              }
-            }}
-            onPointerUp={microphone.stop} onPointerCancel={microphone.stop} onLostPointerCapture={microphone.stop}
-            onKeyDown={event => {if (event.key === ' ' && !event.repeat) { event.preventDefault(); microphone.start(); }}}
-            onKeyUp={event => {if (event.key === ' ') { event.preventDefault(); microphone.stop(); }}}><Mic size={19}/></button>
+          <Tooltip label={microphoneLabel+' · K / Alt+K'}>
+            <button type="button" className="icon-button composer__mic" data-recording={recording}
+              disabled={locked || disabled} aria-label={microphoneLabel} aria-pressed={recording}
+              onPointerDown={event => {
+                if (event.button !== 0) return;
+                if (microphone.start()) {
+                  try {event.currentTarget.setPointerCapture?.(event.pointerId);} catch {}
+                }
+              }}
+              onPointerUp={microphone.stop} onPointerCancel={microphone.stop} onLostPointerCapture={microphone.stop}
+              onKeyDown={event => {if (event.key === ' ' && !event.repeat) { event.preventDefault(); microphone.start(); }}}
+              onKeyUp={event => {if (event.key === ' ') { event.preventDefault(); microphone.stop(); }}}><Mic size={19}/></button>
+          </Tooltip>
           <div className="composer__send-group">
             {sendPrice !== undefined && <span id={messageId+'-price'} data-send-price className="composer__price"
               title={t('Стоимость отправки в демотокенах','Cost in demo tokens')}>

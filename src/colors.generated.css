@@ -19,9 +19,8 @@
   --skeleton-surface-shine: #f9faf5;
   --skeleton-content-shine: #eef6d6;
   --hero-copy: oklch(0.48 0.022 131);
-  --hero-wash: oklch(0.865 0.114 122.516);
-  --hero-warm: oklch(0.932 0.046 86.463);
-  --hero-wave: oklch(0.908 0.103 118.947);
+  --hero-stream-main: oklch(0.55975 0.08525 302.4473);
+  --hero-stream-accent: oklch(0.59556 0.07565 251.6417);
 }
 
 :root[data-theme='dark'] {
@@ -43,7 +42,6 @@
   --skeleton-surface-shine: #384236;
   --skeleton-content-shine: #5a6b43;
   --hero-copy: oklch(0.845 0.022 131);
-  --hero-wash: oklch(0.465 0.062 127.561);
-  --hero-warm: oklch(0.398 0.046 61.723);
-  --hero-wave: oklch(0.541 0.068 125.123);
+  --hero-stream-main: oklch(0.94228 0.02070 301.1395);
+  --hero-stream-accent: oklch(0.94827 0.01658 250.8436);
 }

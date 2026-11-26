@@ -1,0 +1,50 @@
+.service-notices {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-block-end: 28px;
+  padding: clamp(16px, 3vw, 24px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--soft);
+}
+
+.service-notices__body {
+  display: flex;
+  align-items: flex-start;
+  flex: 1 1 240px;
+  min-inline-size: 0;
+  gap: 14px;
+  overflow-wrap: anywhere;
+}
+
+.service-notices__body h2 {
+  font: 750 clamp(16px, 2.4vw, 20px)/1.35 'Manrope Variable', sans-serif;
+  margin-block-end: 4px;
+}
+
+.service-notices__body p, .service-notices__controls {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.service-notices__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.service-notices__controls .icon-button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+}
+
+.service-notices__controls .icon-button:hover { background: var(--soft); }

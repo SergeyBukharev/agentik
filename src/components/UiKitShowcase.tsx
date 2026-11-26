@@ -12,6 +12,7 @@ import {FavoriteButton} from './FavoriteButton';
 import {Modal} from './Modal';
 import {ProButton} from './ProButton';
 import {ScreenSkeleton} from './ScreenSkeleton';
+import {ServiceNotices} from './ServiceNotices';
 
 function Example({title, children}: {title:string; children:ReactNode}) {
   return <section className="kit-example"><h3>{title}</h3><div className="kit-example__body">{children}</div></section>;
@@ -33,6 +34,12 @@ export function UiKitShowcase() {
     <section className="kit-section" aria-labelledby="kit-controls">
       <h2 id="kit-controls">{t('Действия и ввод','Actions and inputs')}</h2>
       <div className="kit-grid">
+        <Example title={t('Подсказки и слайдер','Tooltips and carousel')}>
+          <ServiceNotices items={[
+            {id:'board',kind:'important',title:t('Доски для файлов','Document boards'),description:t('Добавляйте документы в чат помощника.','Add documents to an assistant’s chat.')},
+            {id:'catalog',kind:'promotion',title:t('Каталог помощников','Assistant catalog'),description:t('Подберите помощника под задачу.','Find an assistant for the task at hand.')},
+          ]}/>
+        </Example>
         <Example title={t('Кнопки и диалоги','Buttons and dialogs')}>
           <div className="kit-actions">
             <button type="button" className="button button--primary" onClick={() => setDialog('dialog')}>{t('Открыть диалог','Open dialog')}</button>

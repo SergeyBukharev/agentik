@@ -1,7 +1,7 @@
 import {expect,test} from '@playwright/test';
 import {codeA,codeField,expectNoHorizontalScroll,workspace} from './helpers';
 
-test('keeps one fixed brand and opens the lock when the sixth input character verifies',async({page})=>{
+test('keeps the current sign-in badge beside the fixed brand and opens it after code verification',async({page})=>{
   await page.goto(workspace);
   const brand=page.getByRole('link',{name:'Agentik — главная'});
   await expect(brand).toBeVisible();
@@ -20,13 +20,20 @@ test('keeps one fixed brand and opens the lock when the sixth input character ve
 
   await page.getByRole('link',{name:'Войти по коду'}).click();
   await expect(page.getByRole('heading',{name:'Вход в Agentik'})).toBeVisible();
-  await expect(brand.locator('[data-lock="closed"]')).toHaveCount(1);
-  expect(await brand.boundingBox()).toMatchObject({x:initial!.x,y:initial!.y});
-  expect(await brand.evaluate(node=>getComputedStyle(node).zIndex)).toBe('9999');
-  await brand.evaluate(node=>{
+  const badge = page.getByRole('img', {name:'Страница входа'});
+  await expect(badge).toHaveAttribute('aria-current','page');
+  await expect(badge.locator('[data-lock="closed"]')).toHaveCount(1);
+  const brandBox = (await brand.boundingBox())!;
+  const badgeBox = (await badge.boundingBox())!;
+  expect(brandBox).toMatchObject({x:initial!.x,y:initial!.y});
+  expect(badgeBox.y).toBe(brandBox.y);
+  expect(badgeBox.x).toBeGreaterThan(brandBox.x + brandBox.width);
+  expect(badgeBox.height).toBe(brandBox.height);
+  expect(await brand.evaluate(node=>getComputedStyle(node.parentElement!).zIndex)).toBe('9999');
+  await badge.evaluate(node=>{
     const observer=new MutationObserver(()=>{
       if (node.querySelector('[data-lock="open"]')) {
-        node.setAttribute('data-qa-opened','true');
+        document.documentElement.setAttribute('data-qa-opened','true');
         observer.disconnect();
       }
     });
@@ -40,11 +47,12 @@ test('keeps one fixed brand and opens the lock when the sixth input character ve
   expect(requests).toBe(0);
   await codeField(page).pressSequentially(codeA.slice(5));
   await expect.poll(()=>requests).toBe(1);
-  await expect(brand.locator('[data-lock="closed"]')).toHaveCount(1);
+  await expect(badge.locator('[data-lock="closed"]')).toHaveCount(1);
   release();
   await expect(page.getByRole('heading',{name:'Ваши разговоры'})).toBeVisible();
   await expect(page).toHaveURL(/#\/history$/);
-  await expect(brand).toHaveAttribute('data-qa-opened','true');
+  await expect(page.locator('html')).toHaveAttribute('data-qa-opened','true');
+  await expect(badge).toHaveCount(0);
 
   expect(await handle!.evaluate(node=>node===document.querySelector('.persistent-brand'))).toBe(true);
   expect(await brand.boundingBox()).toMatchObject({x:initial!.x,y:initial!.y});

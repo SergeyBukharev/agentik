@@ -18,6 +18,7 @@ type RoomsProps = {
   profile: LocalProfile;
   language?: Language;
   onSend?: (anchor: HTMLElement | null) => void;
+  onCreate?: () => void;
   messagePrice?: number;
   billMessage?: (commit:()=>boolean) => Promise<boolean>;
 };
@@ -37,7 +38,7 @@ const RoomMessages = memo(function RoomMessages({messages, profileId, language}:
   ));
 });
 
-export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, messagePrice, billMessage}: RoomsProps) {
+export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCreate, messagePrice, billMessage}: RoomsProps) {
   const t = (ru: string, en: string) => language === 'en' ? en : ru;
   const {rooms, storageUnavailable} = useLocalRooms(profile.id);
   const [error, setError] = useState('');
@@ -63,6 +64,7 @@ export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, mess
     setTitleError('');
     try {
       const created = makeRoom(localStorage, profile, title);
+      onCreate?.();
       setCreating(false);
       openRoom(created);
     } catch (cause) {

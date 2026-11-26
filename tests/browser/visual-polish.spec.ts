@@ -3,31 +3,23 @@ import {openCatalog, workspace} from './helpers';
 
 test.use({serviceWorkers: 'block'});
 
-test('moves the hero spotlight on pointer input and respects reduced motion', async ({page}) => {
+test('uses a finite ASCII pulse without the green spotlight on the public and workspace heroes', async ({page}) => {
   await page.goto(workspace);
   const hero = page.locator('.hero--intro');
-  const light = hero.locator('.hero-aura');
-  const wash = light.locator('.hero-aura__wash');
-  const wave = light.locator('.hero-aura__wave');
+  const signal = hero.locator('.hero-stream__signal');
   await expect(hero).toBeVisible();
-  await expect(light).toHaveCSS('opacity', '0');
-  await expect(wave).toHaveCSS('animation-name', 'none');
-  await expect(wash).toHaveCSS('border-radius', '0px');
-  await expect(wash).toHaveCSS('background-image', /in oklch/);
+  await expect(hero.locator('.hero-aura')).toHaveCount(0);
+  await expect(hero.locator('.hero-stream svg text')).not.toHaveCount(0);
+  await expect(signal).toHaveCSS('animation-name', 'none');
   await hero.hover({position: {x: 82, y: 100}});
-  await expect.poll(async ()=>light.evaluate(el=>Number(getComputedStyle(el).opacity)), {timeout:12_000}).toBeGreaterThan(.9);
-  await expect(wave).toHaveCSS('animation-iteration-count', '2');
-  const point = hero.locator('.hero-aura__point');
-  await expect(point).toHaveAttribute('style', /translate3d/);
-  const previous = await point.getAttribute('style');
-  await hero.hover({position: {x: 330, y: 100}});
-  await expect(point).not.toHaveAttribute('style', previous ?? '');
-  await page.locator('.public-landing__header').hover();
-  await expect(light).toHaveCSS('opacity', '0');
-  await expect(wave).toHaveCSS('animation-name', 'none');
+  await expect(signal).toHaveCSS('animation-name', 'hero-stream-pulse');
+  await expect(signal).toHaveCSS('animation-iteration-count', '1');
   await page.emulateMedia({reducedMotion: 'reduce'});
-  await hero.hover({position: {x: 82, y: 100}});
-  await expect(light).toHaveCSS('display', 'none');
+  await expect(signal).toHaveCSS('animation-name', 'none');
+  await openCatalog(page);
+  await page.goto(workspace + '#/');
+  await expect(hero.locator('.hero-stream')).toHaveCount(1);
+  await expect(hero.locator('.hero-aura')).toHaveCount(0);
 });
 
 test('uses separate skeleton surfaces and a static silhouette for the illustration effects', async ({page}) => {

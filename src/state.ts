@@ -3,7 +3,7 @@ import type { Assistant } from './catalog';
 import {SESSION_MS,listProfiles,saveProfile} from './session';
 export type Message = {role:'user'|'assistant'; content:string; turnId?:string; images?:ChatImage[]};
 export type Conversation = {id:string; assistantId:string; title:string; updatedAt:number; messages:Message[]};
-export type AppState = {version:1;favorites:string[];custom:Assistant[];conversations:Conversation[]};
+export type AppState = {version:1;favorites:string[];custom:Assistant[];conversations:Conversation[];startedChat?:true};
 export const emptyState = ():AppState => ({version:1,favorites:[],custom:[],conversations:[]});
 function isAssistant(a:unknown):a is Assistant {
   if(!a || typeof a!=='object')return false;
@@ -25,6 +25,7 @@ export function readState(storage:Pick<Storage,'getItem'>,profileId?:string,now=
     if(profileId&&!Number.isFinite(s.expiresAt))return{state:emptyState(),status:'corrupt'};
     if(profileId&&s.expiresAt<=now)return{state:emptyState(),status:'missing'};
     const state:AppState={version:1,favorites:Array.isArray(s.favorites)?s.favorites.filter((x:unknown)=>typeof x==='string'):[],custom:Array.isArray(s.custom)?s.custom.filter(isAssistant):[],conversations:Array.isArray(s.conversations)?s.conversations.filter(isConversation):[]};
+    if(s.startedChat===true) state.startedChat=true;
     const valid=['favorites','custom','conversations'].every(k=>Array.isArray(s[k])&&s[k].length===state[k as 'favorites'|'custom'|'conversations'].length);
     return{state,status:valid?'ok':'corrupt'};
   } catch {return{state:emptyState(),status:'corrupt'};}

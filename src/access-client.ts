@@ -5,6 +5,19 @@ const ACTIVE = 'agentik:access:active';
 const SIGNED_OUT = 'signed-out';
 export const accessKey = (account: string) => `agentik:access:${account}`;
 
+export function accessPreviewHref(path: string) {
+  const configured = import.meta.env.VITE_ACCESS_PREVIEW_URL;
+  if (apiOrigin || !configured) return;
+  try {
+    const url = new URL(configured);
+    if (url.protocol !== 'https:' || url.origin === location.origin || url.username || url.password) return;
+    url.hash = path;
+    return url.href;
+  } catch {
+    return;
+  }
+}
+
 export class AccessError extends Error {
   constructor(public reason: 'invalid' | 'offline' | 'unavailable' | 'limited' | 'format', message: string) {
     super(message);

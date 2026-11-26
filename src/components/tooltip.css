@@ -1,0 +1,24 @@
+.ui-tooltip {
+  z-index: 100;
+  max-inline-size: min(220px, 100vw - 24px);
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.ui-tooltip__arrow { fill: var(--ink); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ui-tooltip { animation: tooltip-appear .15s ease-out both; }
+}
+
+@keyframes tooltip-appear {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
