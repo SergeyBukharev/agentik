@@ -6,3 +6,4 @@ dist/
 .superpowers/
 artifacts/qa/
 *.log
+*.inspect.ndjson

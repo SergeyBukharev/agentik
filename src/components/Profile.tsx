@@ -1,0 +1,13 @@
+import {lazy,Suspense,useState,type FormEvent} from 'react';
+import {Plus,Check,UserRound} from 'lucide-react';
+import {createProfile,listProfiles,resumeProfile,selectProfile,type LocalProfile} from '../session';
+import {Modal} from './Modal';
+const RemoteProfile=lazy(()=>import('./RemoteProfile').then(m=>({default:m.RemoteProfile})));
+export function Profile({onClose,mode,setMode,token,setToken,profile,onSwitch}:{onClose:()=>void;mode:'demo'|'live';setMode:(s:'demo'|'live')=>void;token:string;setToken:(s:string)=>void;profile:LocalProfile;onSwitch:(p:LocalProfile)=>void}){
+ const[adding,setAdding]=useState(false),[advanced,setAdvanced]=useState(false);
+ let profiles:LocalProfile[]=[];try{profiles=listProfiles(localStorage);}catch{}
+ function choose(p:LocalProfile){let renewed=p;try{renewed=resumeProfile(localStorage,p.id)??p;}catch{}selectProfile(renewed);onSwitch(renewed);}
+ function add(e:FormEvent<HTMLFormElement>){e.preventDefault();const p=createProfile(String(new FormData(e.currentTarget).get('name')));selectProfile(p);onSwitch(p);}
+ if(advanced)return <Suspense fallback={<div className="screen-skeleton" role="status">Загружаем настройки AI…</div>}><RemoteProfile onClose={onClose} mode={mode} setMode={setMode} token={token} setToken={setToken} email=""/></Suspense>;
+ return <Modal title="Ваше пространство" description="Локальные профили на этом устройстве. История и сессия хранятся 90 дней с последнего использования." onClose={onClose}><div className="profile-list">{profiles.map(p=><button className="profile-list__item" key={p.id} onClick={()=>choose(p)}><span className="profile-button__avatar">{p.name[0]}</span><span>{p.name}</span>{p.id===profile.id&&<Check size={19}/>}</button>)}</div><button className="button button--secondary" onClick={()=>setAdding(!adding)}><Plus size={18}/>Другой профиль</button>{adding&&<form className="form profile__new" onSubmit={add}><label htmlFor="profile-name" className="form__label">Как вас зовут?</label><input id="profile-name" name="name" required maxLength={60} className="form__input" autoComplete="given-name" placeholder="Например, Анна"/><button className="button button--primary">Создать пространство</button></form>}<div className="profile__auth"><p className="form__hint">Профили разделяют историю и избранное. Это локальная демонстрация, без паролей и облачной синхронизации.</p><button className="button button--text" onClick={()=>setAdvanced(true)}><UserRound size={16}/>Настройки AI и подключения</button></div><button className="button button--primary profile__done" onClick={onClose}>Готово</button></Modal>;
+}
