@@ -8,3 +8,7 @@ artifacts/qa/
 *.log
 *.inspect.ndjson
 Agentik-local.zip
+codes-for-pro.txt
+.private/
+playwright-report/
+test-results/

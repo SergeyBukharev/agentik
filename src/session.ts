@@ -1,8 +1,64 @@
-export const SESSION_MS=90*24*60*60*1000;
-export type LocalProfile={id:string;name:string;createdAt:number;expiresAt:number};
-export function createProfile(name:string,now=Date.now()):LocalProfile{return{id:crypto.randomUUID(),name:name.trim().slice(0,60)||'Моё пространство',createdAt:now,expiresAt:now+SESSION_MS};}
-export function listProfiles(s:Pick<Storage,'getItem'>,now=Date.now()):LocalProfile[]{try{const data=JSON.parse(s.getItem('agentik:profiles:v1')||'[]');return Array.isArray(data)?data.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string'&&Number.isFinite(p.expiresAt)&&p.expiresAt>now):[];}catch{return[];}}
-export function saveProfile(s:Pick<Storage,'getItem'|'setItem'>,p:LocalProfile):boolean{try{const profiles=listProfiles(s,p.createdAt);s.setItem('agentik:profiles:v1',JSON.stringify([...profiles.filter(x=>x.id!==p.id),p]));return true;}catch{return false;}}
-export function resumeProfile(s:Pick<Storage,'getItem'|'setItem'>,id:string,now=Date.now()):LocalProfile|null{const p=listProfiles(s,now).find(p=>p.id===id);if(!p)return null;const renewed={...p,expiresAt:now+SESSION_MS};saveProfile(s,renewed);return renewed;}
-export function activeProfile():LocalProfile{try{const id=sessionStorage.getItem('agentik:active')||localStorage.getItem('agentik:active');const p=id?resumeProfile(localStorage,id):null;if(p){sessionStorage.setItem('agentik:active',p.id);return p;}}catch{}const p=createProfile('Моё пространство');selectProfile(p);return p;}
-export function selectProfile(p:LocalProfile){try{saveProfile(localStorage,p);localStorage.setItem('agentik:active',p.id);sessionStorage.setItem('agentik:active',p.id);}catch{/* Workspace remains usable in memory. */}}
+import {ACCESS_DURATION_MS} from './access-contract';
+
+export const SESSION_MS = ACCESS_DURATION_MS;
+export type LocalProfile = {id: string; name: string; createdAt: number; expiresAt: number};
+type ProfileStore = Pick<Storage, 'getItem' | 'setItem'>;
+
+const registryKey = (account?: string) => account ? `agentik:profiles:v1:${account}` : 'agentik:profiles:v1';
+const selectedKey = (account?: string) => account ? `agentik:active:${account}` : 'agentik:active';
+
+export function createProfile(name: string, now = Date.now()): LocalProfile {
+  return {id: crypto.randomUUID(), name: name.trim().slice(0, 60) || 'Моё пространство', createdAt: now, expiresAt: now + SESSION_MS};
+}
+
+export function listProfiles(storage: Pick<Storage, 'getItem'>, now = Date.now(), account?: string): LocalProfile[] {
+  try {
+    const data = JSON.parse(storage.getItem(registryKey(account)) || '[]');
+    if (!Array.isArray(data)) return [];
+    return data.filter(profile => profile && typeof profile.id === 'string' && typeof profile.name === 'string'
+      && Number.isFinite(profile.expiresAt) && profile.expiresAt > now);
+  } catch {
+    return [];
+  }
+}
+
+export function saveProfile(storage: ProfileStore, profile: LocalProfile, account?: string): boolean {
+  try {
+    const profiles = listProfiles(storage, profile.createdAt, account);
+    storage.setItem(registryKey(account), JSON.stringify([...profiles.filter(item => item.id !== profile.id), profile]));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function resumeProfile(storage: ProfileStore, id: string, now = Date.now(), account?: string): LocalProfile | null {
+  const profile = listProfiles(storage, now, account).find(item => item.id === id);
+  if (!profile) return null;
+  const renewed = {...profile, expiresAt: now + SESSION_MS};
+  saveProfile(storage, renewed, account);
+  return renewed;
+}
+
+export function activeProfile(account?: string): LocalProfile {
+  const key = selectedKey(account);
+  try {
+    const id = sessionStorage.getItem(key) || localStorage.getItem(key);
+    const profile = id ? resumeProfile(localStorage, id, Date.now(), account) : null;
+    if (profile) {
+      sessionStorage.setItem(key, profile.id);
+      return profile;
+    }
+  } catch { /* The workspace falls back to an in-memory profile. */ }
+  const profile = createProfile('Моё пространство');
+  selectProfile(profile, account);
+  return profile;
+}
+
+export function selectProfile(profile: LocalProfile, account?: string) {
+  try {
+    saveProfile(localStorage, profile, account);
+    localStorage.setItem(selectedKey(account), profile.id);
+    sessionStorage.setItem(selectedKey(account), profile.id);
+  } catch { /* The workspace remains usable in memory. */ }
+}

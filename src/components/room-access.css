@@ -1,0 +1,100 @@
+.room-access {
+  display: grid;
+  gap: 16px;
+}
+
+.room-access__summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  color: var(--ink);
+  background: var(--soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.room-access__actions,
+.chat__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.room-access__actions > .button,
+.room-access__open {
+  min-height: 44px;
+  min-inline-size: 0;
+}
+
+.room-access__members {
+  min-inline-size: 0;
+  border-block: 1px solid var(--line);
+  padding-block: 6px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.room-access__members > summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+}
+
+.room-access__members > ul {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.room-access__members li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px 14px;
+}
+
+.room-access__members li > span,
+.room-access__notice {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.room-access__privacy {
+  justify-self: start;
+  color: var(--danger);
+  padding-inline: 0;
+}
+
+.chat-share > span {
+  overflow-wrap: anywhere;
+}
+
+.room-chat .chat__heading {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.room-chat .chat__header {
+  align-items: flex-start;
+}
+
+.room-chat .room-message-list {
+  min-inline-size: 0;
+}
+
+@media (max-width: 640px) {
+  .chat-share {
+    min-block-size: 44px;
+    padding-inline: 10px;
+  }
+
+  .room-access__actions > .button {
+    flex: 1 1 auto;
+  }
+}

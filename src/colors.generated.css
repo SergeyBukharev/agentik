@@ -1,0 +1,65 @@
+/* Generated from design-system/colors.json by node scripts/color-tokens.mjs. */
+
+:root {
+  --ink: #242922;
+  --muted: #70766c;
+  --subtle: #969d91;
+  --surface: #ffffff;
+  --canvas: #fcfdfb;
+  --soft: #f3f5ef;
+  --line: #e7eae2;
+  --lime: #d1f28b;
+  --lime-soft: #ecf7db;
+  --focus: #527221;
+  --danger: #a52f32;
+  --brand-period: #779655;
+  --skeleton-surface: #ebefe7;
+  --skeleton-content: #dce8cc;
+  --skeleton-surface-shine: #f9faf5;
+  --skeleton-content-shine: #eef6d6;
+  --hero-copy: oklch(0.48 0.022 131);
+  --hero-wash: oklch(0.865 0.114 122.516);
+  --hero-warm: oklch(0.932 0.046 86.463);
+  --hero-wave: oklch(0.908 0.103 118.947);
+  --pro-surface: oklch(0.27 0.029 157.906);
+  --pro-ink: oklch(0.985 0.031 130.569);
+  --pro-border: oklch(0.645 0.093 133.089);
+  --pro-green: oklch(0.449 0.096 136.833);
+  --pro-teal: oklch(0.434 0.062 176.886);
+  --pro-violet: oklch(0.379 0.08 304.931);
+  --pro-deep: oklch(0.341 0.035 166.312);
+  --pro-glow: oklch(0.951 0.108 119.51);
+  --pro-mint: oklch(0.867 0.083 155.143);
+}
+
+:root[data-theme='dark'] {
+  --ink: #edf2e9;
+  --muted: #adb5a7;
+  --subtle: #8f9989;
+  --surface: #22271f;
+  --canvas: #191e17;
+  --soft: #2a3027;
+  --line: #363e31;
+  --lime: #c9ed83;
+  --lime-soft: #344322;
+  --focus: #c9ed83;
+  --danger: #ffb4b2;
+  --brand-period: #afd176;
+  --skeleton-surface: #2b3329;
+  --skeleton-content: #3c4b31;
+  --skeleton-surface-shine: #384236;
+  --skeleton-content-shine: #5a6b43;
+  --hero-copy: oklch(0.845 0.022 131);
+  --hero-wash: oklch(0.465 0.062 127.561);
+  --hero-warm: oklch(0.398 0.046 61.723);
+  --hero-wave: oklch(0.541 0.068 125.123);
+  --pro-surface: oklch(0.293 0.031 164.447);
+  --pro-ink: oklch(0.985 0.031 130.569);
+  --pro-border: oklch(0.801 0.11 128.342);
+  --pro-green: oklch(0.456 0.096 133.065);
+  --pro-teal: oklch(0.452 0.06 178.228);
+  --pro-violet: oklch(0.395 0.074 302.437);
+  --pro-deep: oklch(0.386 0.039 175.435);
+  --pro-glow: oklch(0.963 0.087 116.31);
+  --pro-mint: oklch(0.918 0.067 156.746);
+}

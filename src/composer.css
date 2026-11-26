@@ -1,0 +1,201 @@
+.composer-stack {
+  position: relative;
+  min-width: 0;
+}
+.composer--tools {
+  display: grid;
+  gap: 5px;
+  padding: 9px;
+}
+.composer__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.composer__toolbar .icon-button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.composer__model {
+  margin-inline-end: auto;
+  min-width: 0;
+}
+.composer__toolbar .composer__send { margin-inline-start: auto; }
+.composer__model ~ .composer__mic, .composer__model ~ .composer__send { margin-inline-start: 0; }
+.composer__preparing { font-size: 12px; color: var(--muted); }
+.composer__mic { position: relative; isolation: isolate; touch-action: none; user-select: none; }
+.composer__mic[data-recording='true'] { color: var(--focus); background: var(--lime-soft); }
+.composer__mic[data-recording='true']::before,
+.composer__mic[data-recording='true']::after {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  z-index: -1;
+  border-radius: 999px;
+  border: 1px solid var(--focus);
+  pointer-events: none;
+  animation: dictate-wave 1.55s ease-out infinite;
+}
+.composer__mic[data-recording='true']::after { animation-delay: .75s; }
+@keyframes dictate-wave {
+  from { opacity: .56; transform: scale(.65); }
+  to { opacity: 0; transform: scale(1.48); }
+}
+.composer__attachment { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.composer__attachment span { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+.composer__attachment img { width: 43px; height: 43px; object-fit: cover; border-radius: 8px; }
+.composer__hint { margin: 4px 0; padding: 8px 12px; }
+.chat-images { margin-block-start: 9px; }
+.chat-images__item { display: inline-block; max-width: 100%; }
+.chat-images__item img { display: block; max-width: 100%; max-height: 320px; border-radius: 11px; object-fit: contain; }
+.transcript {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 13px;
+  margin-block-end: 7px;
+  padding-inline: 9px;
+}
+.transcript__word { display: inline; }
+.transcript__letter {
+  display: inline-block;
+  animation: dictate-text .46s cubic-bezier(.2,.8,.2,1.18) both;
+  animation-delay: var(--letter-delay);
+}
+@keyframes dictate-text {
+  from { transform: translateY(.42em); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.chat__header-actions,
+.paywall__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+.chat__header-actions { justify-content: flex-end; }
+.language-choice {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 2px;
+}
+.language-choice button {
+  padding: 4px 9px;
+  min-height: 35px;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 650;
+}
+.language-choice button[aria-pressed='true'] { color: var(--ink); background: var(--lime-soft); }
+.sidebar__preferences { display: grid; gap: 9px; margin-block: 12px 2px; }
+.sidebar__preferences .button--pro { width: 100%; }
+.mobile__preferences { display: none; }
+.form__input:focus, .search__input:focus, .composer__input:focus,
+.code-gate__email:focus { outline: none; }
+.form__input:focus-visible {
+  border-color: var(--focus);
+  background: var(--surface);
+}
+.search:focus-within, .composer:focus-within { outline: none; border-color: var(--focus); }
+.search:focus-within { background: var(--surface); }
+.code-gate__field:focus-within { outline: none; }
+.code-gate__email {
+  background: #141a15;
+  color: #f0f3ee;
+  border: 1px solid #596454;
+  min-height: 44px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  width: 100%;
+  min-width: 0;
+  font-size: 16px;
+}
+.code-gate__email:focus { border-color: #d1f28b; background-color: #252e24; }
+@media(max-width: 640px) {
+  .composer-stack { position: sticky; bottom: calc(72px + env(safe-area-inset-bottom)); z-index: 4; }
+  .composer-stack .composer { position: relative; bottom: auto; }
+  .chat__header { flex-wrap: wrap; }
+  .chat__header-actions { margin-inline-start: auto; }
+  .mobile__preferences { display: flex; gap: 6px; align-items: center; }
+  .mobile__preferences .language-choice button { min-width: 37px; padding-inline: 6px; }
+  .mobile__preferences .button { min-height: 44px; padding: 3px 8px; font-size: 12px; }
+  .form__input { font-size: 16px; }
+}
+@media(max-width: 350px) {
+  .composer__preparing { display: none; }
+}
+
+.button--pro { isolation: isolate; overflow: hidden; }
+.button--pro .shader-layer--pro { z-index: -1; }
+.button--pro > span, .button--pro > svg { position: relative; }
+.chat__loading--skeleton {
+  position: relative;
+  width: min(340px, 88%);
+  padding: 12px 14px;
+  border-radius: 12px;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--soft);
+}
+.chat__loading--skeleton::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 12%, var(--surface) 48%, transparent 79%);
+  animation: sweep 1.45s ease-out infinite;
+}
+@media(max-width: 640px) {
+  .mobile__preferences { margin-block: 14px 0; justify-content: space-between; flex-wrap: wrap; }
+}
+
+.account-preferences {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  justify-content: space-between;
+}
+
+.account-balance {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  min-height: 38px;
+  border-radius: 10px;
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.account-balance > svg { color: var(--focus); }
+.account-balance div { display: grid; line-height: 1.05; }
+.account-balance span { color: var(--muted); font-size: 10px; }
+.account-balance output { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.composer__toolbar { flex-wrap: wrap; }
+.composer__send-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-inline-start: auto;
+}
+.composer__price {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+@media(max-width:640px) {
+  .mobile__preferences .account-preferences { flex: 1 1 auto; justify-content: flex-start; }
+}

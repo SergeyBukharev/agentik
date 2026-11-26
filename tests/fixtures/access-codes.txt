@@ -1,0 +1,3 @@
+# Synthetic QA-only codes.
+[UX9A2K][browser-fixture-a]
+[PD7B4M][browser-fixture-b]

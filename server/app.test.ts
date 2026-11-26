@@ -36,3 +36,25 @@ it('limits requests per authenticated identity',async()=>{
  for(let i=0;i<20;i++)expect((await h(req())).status).toBe(200);
  expect((await h(req())).status).toBe(429);
 });
+
+it('routes an allowed model choice and sends the image only through a vision provider', async () => {
+ let sent: any;
+ const handler=createHandler({...config,providers:{
+   chatgpt:{apiKey:'fixture',model:'vision-model',vision:true},
+   deepseek:{apiKey:'fixture',model:'text-model'},
+ },fetcher:async(_url,init)=>{
+   sent=JSON.parse(init!.body as string);
+   return Response.json({choices:[{message:{content:'Received.'}}]});
+ }});
+ const image={id:'test',name:'test.png',url:'data:image/png;base64,AA=='};
+ const request=(model:string)=>new Request('http://localhost/api/chat?media=1',{
+   method:'POST',headers:{Authorization:'Bearer test','Content-Type':'application/json'},
+   body:JSON.stringify({...body,model,messages:[{role:'user',content:'',images:[image]}]}),
+ });
+ expect((await handler(request('deepseek'))).status).toBe(422);
+ expect((await handler(request('other'))).status).toBe(400);
+ expect((await handler(request('chatgpt'))).status).toBe(200);
+ expect(sent.model).toBe('vision-model');
+ expect((await handler(request('auto'))).status).toBe(200);
+ expect(sent.messages.at(-1).content[1]).toEqual({type:'image_url',image_url:{url:image.url}});
+});

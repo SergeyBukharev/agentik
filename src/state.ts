@@ -1,6 +1,7 @@
+import {isChatImage, type ChatImage} from './chat-media';
 import type { Assistant } from './catalog';
 import {SESSION_MS,listProfiles,saveProfile} from './session';
-export type Message = {role:'user'|'assistant'; content:string};
+export type Message = {role:'user'|'assistant'; content:string; turnId?:string; images?:ChatImage[]};
 export type Conversation = {id:string; assistantId:string; title:string; updatedAt:number; messages:Message[]};
 export type AppState = {version:1;favorites:string[];custom:Assistant[];conversations:Conversation[]};
 export const emptyState = ():AppState => ({version:1,favorites:[],custom:[],conversations:[]});
@@ -12,7 +13,7 @@ function isAssistant(a:unknown):a is Assistant {
 function isConversation(c:unknown):c is Conversation {
   if(!c||typeof c!=='object')return false;
   const x=c as Conversation;
-  return typeof x.id==='string'&&typeof x.assistantId==='string'&&typeof x.title==='string'&&Number.isFinite(x.updatedAt)&&Array.isArray(x.messages)&&x.messages.every(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string');
+  return typeof x.id==='string'&&typeof x.assistantId==='string'&&typeof x.title==='string'&&Number.isFinite(x.updatedAt)&&Array.isArray(x.messages)&&x.messages.every(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string'&&(m.images===undefined||(Array.isArray(m.images)&&m.images.length<=1&&m.images.every(isChatImage))));
 }
 export function readState(storage:Pick<Storage,'getItem'>,profileId?:string,now=Date.now()):{state:AppState;status:'ok'|'missing'|'corrupt'|'unavailable'} {
   let raw:string|null;
@@ -29,6 +30,14 @@ export function readState(storage:Pick<Storage,'getItem'>,profileId?:string,now=
   } catch {return{state:emptyState(),status:'corrupt'};}
 }
 export function loadState(storage:Pick<Storage,'getItem'>,profileId?:string,now=Date.now()):AppState{return readState(storage,profileId,now).state;}
-export function saveState(storage:Pick<Storage,'setItem'>&Partial<Pick<Storage,'getItem'>>,state:AppState,profileId?:string,now=Date.now()):boolean {
-  try {storage.setItem(profileId?`agentik:state:${profileId}`:'agentik:v1',JSON.stringify({...state,savedAt:now,expiresAt:now+SESSION_MS}));if(profileId&&storage.getItem){const full=storage as Pick<Storage,'getItem'|'setItem'>;const p=listProfiles(full,now).find(p=>p.id===profileId);if(p&&!saveProfile(full,{...p,expiresAt:now+SESSION_MS}))return false;}return true;}catch{return false;}
+export function saveState(storage:Pick<Storage,'setItem'>&Partial<Pick<Storage,'getItem'>>,state:AppState,profileId?:string,now=Date.now(),account?:string):boolean {
+  try {
+    storage.setItem(profileId ? `agentik:state:${profileId}` : 'agentik:v1', JSON.stringify({...state, savedAt:now, expiresAt:now+SESSION_MS}));
+    if (profileId && storage.getItem) {
+      const full = storage as Pick<Storage,'getItem'|'setItem'>;
+      const profile = listProfiles(full, now, account).find(p => p.id === profileId);
+      if (profile && !saveProfile(full, {...profile, expiresAt:now+SESSION_MS}, account)) return false;
+    }
+    return true;
+  } catch { return false; }
 }

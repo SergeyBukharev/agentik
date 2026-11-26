@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { catalog, filterAssistants } from './catalog';
 import { emptyState, loadState, readState, saveState } from './state';
 describe('catalog', () => {
-  it('contains 30 practical assistants and 6 characters', () => {
-    expect(catalog.filter(a=>a.kind==='assistant')).toHaveLength(30);
+  it('contains 32 practical assistants and 6 characters', () => {
+    expect(catalog.filter(a=>a.kind==='assistant')).toHaveLength(32);
     expect(catalog.filter(a=>a.kind==='character')).toHaveLength(6);
-    expect(new Set(catalog.map(a=>a.id)).size).toBe(36);
+    expect(new Set(catalog.map(a=>a.id)).size).toBe(38);
   });
   it('normalizes Russian search and intersects category', () => {
     expect(filterAssistants(catalog, '  РЕЗЮМЕ  ', 'Работа').map(a=>a.id)).toContain('career');

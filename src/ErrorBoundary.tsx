@@ -1,2 +1,10 @@
-import {Component,type ReactNode} from 'react';
-export class ErrorBoundary extends Component<{children:ReactNode},{failed:boolean}>{state={failed:false};static getDerivedStateFromError(){return{failed:true};}render(){return this.state.failed?<main className="empty-state"><h1 className="section-title">Обновим страницу?</h1><p className="empty-state__text">Не удалось загрузить экран. Сохранённые разговоры остаются в этом браузере.</p><button className="button button--primary" onClick={()=>location.reload()}>Повторить загрузку</button></main>:this.props.children;}}
+import {Component, type ReactNode} from 'react';
+import {PageState} from './components/PageState';
+
+export class ErrorBoundary extends Component<{children: ReactNode}, {failed: boolean}> {
+  state = {failed: false};
+  static getDerivedStateFromError() { return {failed: true}; }
+  render() {
+    return this.state.failed ? <main className="state-page"><PageState kind="failure"/></main> : this.props.children;
+  }
+}

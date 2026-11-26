@@ -1,13 +1,81 @@
-import {lazy,Suspense,useState,type FormEvent} from 'react';
-import {Plus,Check,UserRound} from 'lucide-react';
-import {createProfile,listProfiles,resumeProfile,selectProfile,type LocalProfile} from '../session';
+import {useUi} from '../language';
+import {useState, type ReactNode, type FormEvent} from 'react';
+import {Check, FlaskConical, Plus, Sparkles} from 'lucide-react';
+import {createProfile, listProfiles, resumeProfile, type LocalProfile} from '../session';
 import {Modal} from './Modal';
-const RemoteProfile=lazy(()=>import('./RemoteProfile').then(m=>({default:m.RemoteProfile})));
-export function Profile({onClose,mode,setMode,token,setToken,profile,onSwitch}:{onClose:()=>void;mode:'demo'|'live';setMode:(s:'demo'|'live')=>void;token:string;setToken:(s:string)=>void;profile:LocalProfile;onSwitch:(p:LocalProfile)=>void}){
- const[adding,setAdding]=useState(false),[advanced,setAdvanced]=useState(false);
- let profiles:LocalProfile[]=[];try{profiles=listProfiles(localStorage);}catch{}
- function choose(p:LocalProfile){let renewed=p;try{renewed=resumeProfile(localStorage,p.id)??p;}catch{}selectProfile(renewed);onSwitch(renewed);}
- function add(e:FormEvent<HTMLFormElement>){e.preventDefault();const p=createProfile(String(new FormData(e.currentTarget).get('name')));selectProfile(p);onSwitch(p);}
- if(advanced)return <Suspense fallback={<div className="screen-skeleton" role="status">Загружаем настройки AI…</div>}><RemoteProfile onClose={onClose} mode={mode} setMode={setMode} token={token} setToken={setToken} email=""/></Suspense>;
- return <Modal title="Ваше пространство" description="Локальные профили на этом устройстве. История и сессия хранятся 90 дней с последнего использования." onClose={onClose}><div className="profile-list">{profiles.map(p=><button className="profile-list__item" key={p.id} onClick={()=>choose(p)}><span className="profile-button__avatar">{p.name[0]}</span><span>{p.name}</span>{p.id===profile.id&&<Check size={19}/>}</button>)}</div><button className="button button--secondary" onClick={()=>setAdding(!adding)}><Plus size={18}/>Другой профиль</button>{adding&&<form className="form profile__new" onSubmit={add}><label htmlFor="profile-name" className="form__label">Как вас зовут?</label><input id="profile-name" name="name" required maxLength={60} className="form__input" autoComplete="given-name" placeholder="Например, Анна"/><button className="button button--primary">Создать пространство</button></form>}<div className="profile__auth"><p className="form__hint">Профили разделяют историю и избранное. Это локальная демонстрация, без паролей и облачной синхронизации.</p><button className="button button--text" onClick={()=>setAdvanced(true)}><UserRound size={16}/>Настройки AI и подключения</button></div><button className="button button--primary profile__done" onClick={onClose}>Готово</button></Modal>;
+import {AgentSelect} from './AgentSelect';
+
+export function Profile({onClose, mode, setMode, profile, accountId, preferences, onSwitch, onSignOut}: {
+  onClose: () => void;
+  mode: 'demo' | 'live';
+  setMode: (mode: 'demo' | 'live') => void;
+  profile: LocalProfile;
+  accountId: string;
+  preferences?:ReactNode;
+  onSwitch: (profile: LocalProfile) => void;
+  onSignOut: () => void;
+}) {
+  const {t} = useUi();
+  const [adding, setAdding] = useState(false);
+  const [nameError,setNameError]=useState(false);
+  let profiles: LocalProfile[] = [];
+  try { profiles = listProfiles(localStorage, Date.now(), accountId); } catch { /* The active profile is still available. */ }
+  if (!profiles.some(item => item.id === profile.id)) profiles.push(profile);
+
+  function choose(item: LocalProfile) {
+    let renewed = item;
+    try { renewed = resumeProfile(localStorage, item.id, Date.now(), accountId) ?? item; } catch {}
+    onSwitch(renewed);
+  }
+  function add(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name=String(new FormData(event.currentTarget).get('name')??'').trim();
+    if (!name) {
+      setNameError(true);
+      event.currentTarget.querySelector<HTMLInputElement>('#profile-name')?.focus();
+      return;
+    }
+    setNameError(false);
+    onSwitch(createProfile(name));
+  }
+
+  return (
+    <Modal title={t('Ваше пространство','Your workspace')} description={t('Профили на этом устройстве хранят отдельные разговоры и избранное.','Each local profile keeps its own chats and favorites.')} onClose={onClose}>
+      <div className="profile-list">
+        {profiles.map(item => (
+          <button className="profile-list__item" key={item.id} onClick={() => choose(item)} aria-pressed={item.id === profile.id}>
+            <span className="profile-button__avatar" aria-hidden="true">{item.name[0]}</span>
+            <span>{item.name}</span>{item.id === profile.id && <Check size={19}/>}
+          </button>
+        ))}
+      </div>
+      <button className="button button--secondary" onClick={() => {setAdding(!adding);setNameError(false);}} aria-expanded={adding}>
+        <Plus size={18}/> {t('Другой профиль','Add profile')}
+      </button>
+      {adding && (
+        <form className="form profile__new" onSubmit={add} noValidate>
+          <label htmlFor="profile-name" className="form__label">{t('Как вас зовут?','Your name')}</label>
+          <input id="profile-name" name="name" required maxLength={60} className="form__input" autoComplete="given-name" aria-invalid={nameError || undefined} aria-describedby={nameError ? 'profile-name-error' : undefined} onChange={()=>setNameError(false)}/>
+          {nameError&&<p className="notice notice--error" id="profile-name-error" role="alert">{t('Укажите имя профиля.','Enter a profile name.')}</p>}
+          <button className="button button--primary">{t('Создать пространство','Create profile')}</button>
+        </form>
+      )}
+      <div className="form profile__auth">
+        <label htmlFor="mode" className="form__label">{t('Режим ответов','Reply mode')}</label>
+        <AgentSelect id="mode" fullWidth label={t('Режим ответов','Reply mode')} value={mode} onChange={setMode}
+          options={[
+            {value:'demo', label:t('Демо, включая офлайн','Demo with offline support'), icon:<FlaskConical size={17} aria-hidden="true"/>},
+            {value:'live', label:t('AI через сервер','AI via server'), icon:<Sparkles size={17} aria-hidden="true"/>},
+          ]}/>
+      </div>
+      {preferences}
+      <a className="text-link profile__agreement" href="#/agreement" onClick={onClose}>
+        {t('Пользовательское соглашение','User agreement')}
+      </a>
+      <div className="profile__buttons">
+        <button className="button button--text" onClick={onSignOut}>{t('Выйти','Sign out')}</button>
+        <button className="button button--primary" onClick={onClose}>{t('Готово','Done')}</button>
+      </div>
+    </Modal>
+  );
 }

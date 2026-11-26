@@ -1,0 +1,4 @@
+export const MAX_MEDIA_CHAT_BODY_BYTES = 400_000;
+export const MAX_CHAT_BODY_BYTES = 65_536;
+export const MAX_CHAT_MESSAGES = 20;
+export const MAX_CHAT_MESSAGE_LENGTH = 6000;
