@@ -16,7 +16,7 @@ import {PageState} from './components/PageState';
 import {ScreenSkeleton} from './components/ScreenSkeleton';
 import {useUi} from './language';
 import {type ChatImage, type ChatModel} from './chat-media';
-import {createChatDrafts} from './chat-drafts';
+import {createChatDrafts, type ChatDraftAttachment} from './chat-drafts';
 import {MAX_CHAT_MESSAGE_LENGTH} from './chat-contract';
 import {ChatBoardTabs} from './components/ChatBoardTabs';
 import {CategoryIcon} from './components/CategoryIcon';
@@ -160,15 +160,22 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
   const chatKey = conversation?.id ?? `new:${assistant?.id ?? ''}`;
   const boardChat = page === 'board' && route.boardChatId
     ? state.conversations.find(item => item.id === route.boardChatId && item.assistantId === id) : undefined;
+  const boardDraftKey = boardChat?.id ?? `new:${assistant?.id ?? ''}`;
+  const boardChatHref = boardChat ? `#/chat/${boardChat.id}` : `#/assistant/${assistant?.id ?? ''}`;
 
   function takeBoardNotes(text: string) {
     if (!assistant || !text.trim()) return false;
-    const target = boardChat?.id ?? `new:${assistant.id}`;
-    const combined = [drafts.get(target).trimEnd(), text].filter(Boolean).join('\n\n');
+    const combined = [drafts.get(boardDraftKey).trimEnd(), text].filter(Boolean).join('\n\n');
     if (combined.length > MAX_CHAT_MESSAGE_LENGTH) return false;
-    drafts.set(target, combined);
-    location.hash = boardChat ? `#/chat/${boardChat.id}` : `#/assistant/${assistant.id}`;
+    drafts.set(boardDraftKey, combined);
+    location.hash = boardChatHref;
     return true;
+  }
+
+  function takeBoardAttachment(attachment: ChatDraftAttachment) {
+    if (!assistant) return;
+    drafts.setAttachment(boardDraftKey, attachment);
+    location.hash = boardChatHref;
   }
 
   useEffect(() => { setQuery(''); setCategory('Все'); }, [route.path]);
@@ -236,7 +243,9 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
   function send(retry: boolean, anchor: HTMLElement | null, images: ChatImage[]) {
     if (!assistant || controllers.current.has(chatKey) || (mode === 'live' && !online)) return false;
     const input = drafts.get(chatKey).trim();
-    if (!retry && !input && !images.length) return false;
+    const draftAttachment = drafts.getAttachment(chatKey);
+    const draftDocument = draftAttachment?.kind === 'document' ? draftAttachment.document : undefined;
+    if (!retry && !input && (draftDocument || !images.length)) return false;
     const target = conversation ?? {id: crypto.randomUUID(), assistantId: assistant.id, title: input.slice(0, 70) || images[0]?.name || t('Изображение','Image'), messages: [], updatedAt: Date.now()};
     const id = target.id;
     let turn: {id: string; prompt: string} | undefined;
@@ -245,12 +254,14 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
       const last = current.messages.at(-1);
       const attempted = conversation?.messages.at(-1);
       if (retry && (last?.role !== 'user' || last.turnId !== attempted?.turnId
-        || last.content !== attempted?.content || last.images?.[0]?.id !== attempted?.images?.[0]?.id)) return current;
+        || last.content !== attempted?.content || last.images?.[0]?.id !== attempted?.images?.[0]?.id
+        || last.document?.id !== attempted?.document?.id)) return current;
       turn = {id: (retry ? last?.turnId : undefined) ?? crypto.randomUUID(), prompt: retry ? last!.content : input};
       const messages = retry ? current.messages.slice(0, -1) : current.messages;
       const attachments = retry ? last?.images : images;
+      const document = retry ? last?.document : draftDocument;
       return {...current, messages: [...messages, {role:'user',content:turn.prompt,turnId:turn.id,
-        ...(attachments?.length ? {images:attachments} : {})}], updatedAt: Date.now()};
+        ...(attachments?.length ? {images:attachments} : {}), ...(document ? {document} : {})}], updatedAt: Date.now()};
     };
 
     let requestMessages: Conversation['messages'] = [];
@@ -262,6 +273,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
     });
     if (!turn) return false;
     const sent = turn;
+    if (!retry) drafts.setAttachment(chatKey);
 
     const controller = new AbortController();
     controllers.current.set(id, controller);
@@ -290,7 +302,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
           return {...item, messages, updatedAt:Date.now()};
         }),
       }));
-      if (drafts.get(id).trim() === sent.prompt) drafts.set(id, '');
+      if (drafts.get(id).trim() === sent.prompt && !drafts.getAttachment(id)) drafts.set(id, '');
     }).catch(error => {
       if (!controller.signal.aborted) {
         setErrors(current => ({...current,[id]:error instanceof Error ? error.message : 'Не удалось получить ответ.'}));
@@ -312,6 +324,17 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
      : page === 'favorites' ? state.favorites.includes(a.id) : a.kind === 'assistant');
    return filterAssistants(entries, query, category);
  }, [isCatalog, all, state.favorites, page, query, category]);
+ const messageCounts = useMemo(() => {
+   const counts = new Map<string, {total: number; hasUserMessage: boolean}>();
+   if (!isCatalog) return counts;
+   for (const {assistantId, messages} of state.conversations) {
+     const count = counts.get(assistantId) ?? {total: 0, hasUserMessage: false};
+     count.total += messages.length;
+     count.hasUserMessage ||= messages.some(message => message.role === 'user');
+     counts.set(assistantId, count);
+   }
+   return counts;
+ }, [isCatalog, state.conversations]);
  const languagePicker=<div className="language-choice" role="group" aria-label={t('Язык интерфейса','Interface language')}>
    <button type="button" aria-pressed={language==='ru'} onClick={()=>setLanguage('ru')}>RU</button>
    <button type="button" aria-pressed={language==='en'} onClick={()=>setLanguage('en')}>ENG</button>
@@ -369,7 +392,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
       <ChatBoardTabs assistantId={assistant.id} conversationId={boardChat?.id} active="board"/>
       <Suspense fallback={<ScreenSkeleton/>}>
         <ChatBoard key={profile.id+'/'+assistant.id} profileId={profile.id} boardKey={assistant.id}
-          title={assistant.name} onUseText={takeBoardNotes}/>
+          title={assistant.name} onUseText={takeBoardNotes} onUseAttachment={takeBoardAttachment}/>
       </Suspense>
     </section> : <PageState kind="conversation" href="#/boards"/>
    ) : page==='boards' ? <Suspense fallback={<ScreenSkeleton/>}><BoardIndex profileId={profile.id}/></Suspense>
@@ -384,7 +407,29 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
    {notices.length > 0 && <ServiceNotices items={notices}/>}
    <section className={`catalog${home||page==='assistants'?' catalog--discovery':''}`}><div className="mobile-intro"><p>Рады видеть вас, {profile.name==='Моё пространство'?'друг':profile.name}</p><h1>{t('С чем помочь?','How can we help?')}</h1><button className="icon-button" aria-label={t('Создать своего помощника','Create your own assistant')} onClick={()=>{setValidation('');setModal('create');}}><Plus size={23}/></button></div><div className="mobile-switch"><a className={page!=='characters'?'mobile-switch__link mobile-switch__link--active':'mobile-switch__link'} href="#/assistants">{t('Помощники','Assistants')}</a><a className={page==='characters'?'mobile-switch__link mobile-switch__link--active':'mobile-switch__link'} href="#/characters">{t('Персонажи','Characters')}</a></div><div className="section-heading"><div>{!home&&<p className="eyebrow">{page==='characters'?t('ИСТОРИИ И НОВЫЕ ЗНАКОМСТВА','STORIES AND CHARACTERS'):page==='favorites'?t('ВАША ЛИЧНАЯ КОЛЛЕКЦИЯ','YOUR COLLECTION'):t('НА КАЖДЫЙ СЛУЧАЙ','EVERYDAY HELP')}</p>}<TitleTag className={home?'section-title section-title--secondary':'section-title'}>{title}</TitleTag><p className="section-description">{page==='characters'?t('Вымышленные герои с характером. Для общения, игр и воображения.','Fictional characters for conversations and stories.'):page==='favorites'?t('Любимые помощники и персонажи в одном месте.','Your favorite assistants and characters in one place.'):t('Немного поддержки — и всё получится.','Find an assistant for the task at hand.')}</p></div><label className="search"><Search size={19}/><span className="sr-only">{t('Поиск помощника','Search assistants')}</span><input className="search__input" type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('Кто вам нужен сегодня?','Who do you need today?')}/>{query&&<button className="search__clear" onClick={()=>setQuery('')} aria-label={t('Очистить поиск','Clear search')}><X size={16}/></button>}</label></div>
    {page!=='characters'&&<div className="catalog__toolbar"><div className="category-list" aria-label={t('Категории','Categories')}>{[...categories,...(state.custom.length?['Мои помощники']:[])].map(c=><button className={`category-list__item${category===c?' category-list__item--active':''}`} aria-pressed={category===c} onClick={()=>setCategory(c)} key={c}><CategoryIcon category={c}/><span>{categoryLabel(c)}</span></button>)}</div><span className="catalog__count">{visible.length} {page==='favorites'?t('в избранном','in favorites'):t('помощников','assistants')}</span></div>}
-   {visible.length?<div className="agent-grid">{(home&&!query&&category==='Все'?visible.slice(0,6):visible).map(a=><article className="agent-card" key={a.id}><div className="agent-card__top"><span className={`avatar avatar--${a.color}`} data-category={a.category}><AgentIcon name={a.icon}/></span><FavoriteButton pressed={state.favorites.includes(a.id)} label={`${state.favorites.includes(a.id)?t('Убрать из избранного','Remove favorite'):t('В избранное','Add favorite')}: ${a.name}`} onToggle={()=>favorite(a.id)}/></div><a href={`#/assistant/${a.id}`} className="agent-card__link" onFocus={prefetchChat} onPointerEnter={prefetchChat} aria-label={t(`Открыть: ${a.name}`,`Open: ${a.name}`)}><h2 className="agent-card__title">{a.name}</h2><p className="agent-card__description">{a.description}</p><span className="agent-card__footer"><span>{categoryLabel(a.category)}</span><MessageCircle size={17}/></span></a></article>)}</div>:<Empty title={page==='favorites'&&!query?t('Сохраните тех, кто нравится','Save your favorites'):t('Пока никого не нашли','No assistants found')} text={page==='favorites'&&!query?t('Нажмите на звёздочку на карточке, и помощник останется здесь.','Star an assistant to keep it here.'):t('Попробуйте другое слово или выберите другую категорию.','Try a different search or category.')}/>}
+   {visible.length?<div className="agent-grid">{(home&&!query&&category==='Все'?visible.slice(0,6):visible).map(a=>{
+     const messages = messageCounts.get(a.id);
+     const count = messages?.hasUserMessage ? messages.total.toLocaleString(language) : undefined;
+     const descriptionId = count ? `agent-message-count-${a.id}` : undefined;
+     return <article className="agent-card" key={a.id}>
+       <div className="agent-card__top">
+         <span className={`avatar avatar--${a.color}`} data-category={a.category}><AgentIcon name={a.icon}/></span>
+         <FavoriteButton pressed={state.favorites.includes(a.id)} label={`${state.favorites.includes(a.id)?t('Убрать из избранного','Remove favorite'):t('В избранное','Add favorite')}: ${a.name}`} onToggle={()=>favorite(a.id)}/>
+       </div>
+       <a href={`#/assistant/${a.id}`} className="agent-card__link" onFocus={prefetchChat} onPointerEnter={prefetchChat}
+         aria-label={t(`Открыть: ${a.name}`,`Open: ${a.name}`)} aria-describedby={descriptionId}>
+         <h2 className="agent-card__title">{a.name}</h2>
+         <p className="agent-card__description">{a.description}</p>
+         <span className="agent-card__footer">
+           <span>{categoryLabel(a.category)}</span>
+           <span className="agent-card__messages">
+             <MessageCircle size={17} aria-hidden="true"/>
+             {count && <><span aria-hidden="true">{count}</span><span id={descriptionId} className="sr-only">{t(`Сообщений: ${count}`, `Messages: ${count}`)}</span></>}
+           </span>
+         </span>
+       </a>
+     </article>;
+   })}</div>:<Empty title={page==='favorites'&&!query?t('Сохраните тех, кто нравится','Save your favorites'):t('Пока никого не нашли','No assistants found')} text={page==='favorites'&&!query?t('Нажмите на звёздочку на карточке, и помощник останется здесь.','Star an assistant to keep it here.'):t('Попробуйте другое слово или выберите другую категорию.','Try a different search or category.')}/>}
    {home&&!query&&category==='Все'&&<a className="catalog__more" href="#/assistants">{t('Все помощники','All assistants')}<ChevronDown size={18}/></a>}
    </section>
    {home&&<><section className="create-banner"><span className="create-banner__icon"><Plus size={28}/></span><div><h2 className="create-banner__title">{t('Ваши задачи. Ваш помощник.','An assistant for your work')}</h2><p>{t('Задайте ему роль и характер — остальное дело за вами.','Describe a role and the way you want it to work.')}</p></div><button className="button button--secondary" onClick={()=>{setValidation('');setModal('create');}}>{t('Создать своего','Create your own')}</button></section><section className="how-it-works"><div><span className="eyebrow">{t('ПРОЩЕ, ЧЕМ КАЖЕТСЯ','GETTING STARTED')}</span><h2 className="section-title section-title--secondary">{t('От вопроса к результату','From question to result')}</h2></div><div className="how-it-works__grid">{[[t('Найдите своего','Find an assistant'),t('Выберите помощника под задачу или создайте собственного.','Pick one for the job or create your own.')],[t('Расскажите о задаче','Describe your task'),t('Напишите своими словами или начните с готового примера.','Write a message or pick a starter prompt.')],[t('Вернитесь, когда нужно','Return when you need to'),t('Разговоры останутся в истории этого браузера.','Your browser keeps your chat history.')]].map(([t,d])=><div className="how-it-works__step" key={t}><span className="how-it-works__check"><Check size={18}/></span><h3>{t}</h3><p>{d}</p></div>)}</div></section></>}

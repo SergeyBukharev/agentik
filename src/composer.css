@@ -70,6 +70,26 @@
 .composer__attachment { display: flex; min-width: 0; align-items: center; gap: 8px; }
 .composer__attachment span { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
 .composer__attachment img { width: 43px; height: 43px; object-fit: cover; border-radius: 8px; }
+.composer__document { display: flex; align-items: center; min-width: 0; gap: 4px; }
+.composer__document > .icon-button { flex: none; width: 44px; height: 44px; }
+.chat-document {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  gap: 7px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--lime-soft);
+  color: var(--ink);
+  font-size: 13px;
+}
+.chat-document > svg, .chat-document > small { flex: none; }
+.chat-document > svg { color: var(--focus); }
+.chat-document > small { color: var(--hero-copy); }
+.chat-document__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.message__document { margin-block-start: 8px; }
 .composer__hint { margin: 4px 0; padding: 8px 12px; }
 .chat-images { margin-block-start: 9px; }
 .chat-images__item { display: inline-block; max-width: 100%; }

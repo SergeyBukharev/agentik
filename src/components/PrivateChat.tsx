@@ -1,10 +1,10 @@
-import {lazy, memo, Suspense, useRef, useSyncExternalStore} from 'react';
+import {lazy, memo, Suspense, useEffect, useRef, useSyncExternalStore} from 'react';
 import {ChevronLeft, WifiOff} from 'lucide-react';
 import type {Assistant} from '../catalog';
 import type {Conversation} from '../state';
 import {AgentIcon} from './Brand';
 import {WelcomeTitle} from './ShaderEffects';
-import {ChatComposer, MessageImages} from './ChatComposer';
+import {ChatComposer, DocumentLabel, MessageImages} from './ChatComposer';
 import {ChatSharing} from './ChatSharing';
 import {ChatSuggestions} from './ChatSuggestions';
 import {ChatBoardTabs} from './ChatBoardTabs';
@@ -26,6 +26,7 @@ const PrivateMessages = memo(function PrivateMessages({messages, assistantName, 
     <article className={`message message--${message.role}`} key={index}>
       <span className="message__author">{message.role === 'user' ? userName : assistantName}</span>
       {message.content && <p className="message__body">{message.content}</p>}
+      {message.document && <div className="message__document"><DocumentLabel file={message.document}/></div>}
       <MessageImages images={message.images}/>
     </article>
   ));
@@ -50,7 +51,11 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
   const draftField = useRef<HTMLTextAreaElement>(null);
   const routeKey = conversation?.id ?? 'new:' + assistant.id;
   const draft = useSyncExternalStore(drafts.subscribe, () => drafts.get(routeKey));
+  const attachment = useSyncExternalStore(drafts.subscribe, () => drafts.getAttachment(routeKey));
   const onDraft = (text: string) => drafts.set(routeKey, text);
+  useEffect(() => {
+    if (attachment) draftField.current?.focus({preventScroll:true});
+  }, [attachment]);
   const composer = useRef({route:routeKey, epoch:0, createdId:''});
   if (composer.current.route !== routeKey) {
     if (composer.current.createdId !== routeKey) composer.current.epoch++;
@@ -117,9 +122,10 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
       {hasMessages && suggestions}
       <ChatComposer key={composer.current.epoch} fieldRef={draftField} draft={draft} onDraft={onDraft}
         busy={busy} disabled={offlineAi} model={model} onModel={onModel}
-        price={messagePrice} retryDraft={!!(canRetry && draft.trim() && lastMessage.content === draft.trim())}
+        attachment={attachment} onRemoveAttachment={() => drafts.setAttachment(routeKey)}
+        price={messagePrice} retryDraft={!!(canRetry && !attachment && draft.trim() && lastMessage.content === draft.trim())}
         onSubmit={async (images, anchor) => {
-          const accepted = await onSend(canRetry && !images.length && lastMessage.content === draft.trim(), anchor, images);
+          const accepted = await onSend(canRetry && !attachment && !images.length && lastMessage.content === draft.trim(), anchor, images);
           if (accepted && !conversation) composer.current.createdId = location.hash.match(/^#\/chat\/([^/]+)$/)?.[1] ?? '';
           return accepted;
         }}/>

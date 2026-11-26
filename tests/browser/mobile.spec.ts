@@ -1,6 +1,23 @@
 import {expect, test} from '@playwright/test';
 import {codeField, enterCode, expectNoHorizontalScroll, messageField, sendButton, workspace} from './helpers';
 
+test('keeps board files available for editing after reload on mobile', async ({page}) => {
+  await page.setViewportSize({width:320,height:740});
+  await page.goto(workspace + '#/board/writer');
+  await enterCode(page);
+  await expect(page.getByRole('button',{name:'Добавить файлы'})).toBeEnabled();
+  await page.locator('.chat-board input[type=file]').setInputFiles({
+    name:'mobile-notes.txt', mimeType:'text/plain', buffer:Buffer.from('Абзац с заметками.'),
+  });
+  const edit = page.getByRole('button',{name:'Редактировать в чате'});
+  await expect(edit).toBeVisible({timeout:4000});
+  await page.reload();
+  await expect(page.getByText('Абзац с заметками.',{exact:true})).toBeVisible();
+  await edit.click();
+  await expect(page.locator('.composer__document')).toContainText('mobile-notes.txt');
+  await expectNoHorizontalScroll(page);
+});
+
 test('keeps the landing sign-in fixed opposite the logo on narrow and wide screens', async ({page}) => {
   await page.goto(workspace);
   const login = page.getByRole('link', {name: 'Войти', exact: true});

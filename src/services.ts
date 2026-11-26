@@ -17,10 +17,15 @@ function buildChatBody(assistant: Assistant, history: Message[], options: ReplyO
   const messages: Message[] = [];
   for (const item of history.slice(-MAX_CHAT_MESSAGES).reverse()) {
     const message = {role:item.role, content:item.content.slice(0, MAX_CHAT_MESSAGE_LENGTH),
-      ...(item === latest && item.images?.length ? {images:item.images} : {})};
+      ...(item === latest && item.images?.length ? {images:item.images} : {}),
+      ...(item.document ? {document:item.document} : {})};
     if (!message.content.trim() && !message.images?.length) continue;
     const bytes = encoder.encode(JSON.stringify(message)).length + (messages.length ? 1 : 0);
-    if (bytes > available) break;
+    if (bytes > available) {
+      if (item === latest && item.document) throw new Error(options.language === 'en'
+        ? 'Shorten the request to leave room for the attached text.' : 'Сократите запрос, чтобы в него поместился текст файла.');
+      break;
+    }
     available -= bytes;
     messages.push(message);
   }
@@ -41,6 +46,10 @@ export async function replyTo(assistant: Assistant, messages: Message[], options
       }, 450);
       options.signal?.addEventListener('abort', abort, {once: true});
     });
+    const file = messages.at(-1)?.document;
+    if (file) return options.language === 'en'
+      ? `The file “${file.name}” is ready for editing. Connect an AI provider to get a revised version.`
+      : `Файл «${file.name}» готов к редактированию. Чтобы получить исправленный текст, подключите AI.`;
     if (options.language === 'en') return `Demo reply from ${assistant.name}.
 
 Your message: ${messages.at(-1)?.content || 'Image'}

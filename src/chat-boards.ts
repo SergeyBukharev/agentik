@@ -17,6 +17,8 @@ export type BoardDocument = {
 
 export type ChatBoard = {profileId: string; key: string; title: string; documents: BoardDocument[]; updatedAt: number};
 export type BoardSummary = {key: string; title: string; documentCount: number; updatedAt: number};
+type StoredDocument = BoardDocument | (Omit<BoardDocument, 'blob'> & {bytes: ArrayBuffer});
+type StoredBoard = Omit<ChatBoard, 'documents'> & {documents: StoredDocument[]};
 type StoredSummary = BoardSummary & Pick<ChatBoard, 'profileId'>;
 type BoardErrorCode = 'file-too-large' | 'file-type' | 'file-empty' | 'board-limit' | 'board-conflict' | 'invalid-board' | 'storage-unavailable';
 
@@ -29,6 +31,8 @@ export class BoardError extends Error {
 
 const databaseName = 'agentik-chat-boards';
 let connection: Promise<IDBDatabase> | undefined;
+let useByteRecords = false;
+const bytesByBlob = new WeakMap<Blob, ArrayBuffer>();
 
 function boardDatabase() {
   if (connection) return connection;
@@ -83,7 +87,16 @@ export async function listBoards(profileId: string): Promise<BoardSummary[]> {
 
 export async function getBoard(profileId: string, key: string): Promise<ChatBoard | null> {
   if (!validKey(profileId) || !validKey(key)) throw new BoardError('invalid-board');
-  return await readStore<ChatBoard | undefined>('boards', store => store.get([profileId, key])) ?? null;
+  const record = await readStore<StoredBoard | undefined>('boards', store => store.get([profileId, key]));
+  if (!record) return null;
+  return {...record, documents:record.documents.map(file => {
+    if ('blob' in file) return file;
+    useByteRecords = true;
+    const {bytes, ...metadata} = file;
+    const blob = new Blob([bytes], {type:metadata.type});
+    bytesByBlob.set(blob, bytes);
+    return {...metadata, blob};
+  })};
 }
 
 function isDocument(entry: BoardDocument) {
@@ -92,6 +105,19 @@ function isDocument(entry: BoardDocument) {
     && entry.size > 0 && entry.size <= MAX_BOARD_FILE_BYTES
     && (entry.extraction === 'ready' ? typeof entry.text === 'string' && !!entry.text.trim() && entry.text.length <= MAX_TEXT_CHARS
       : entry.extraction === 'unsupported' && entry.text === undefined);
+}
+
+async function byteRecord(board: ChatBoard): Promise<StoredBoard> {
+  const documents: StoredDocument[] = [];
+  for (const {blob, ...metadata} of board.documents) {
+    let bytes = bytesByBlob.get(blob);
+    if (!bytes) {
+      bytes = await fileBytes(blob);
+      bytesByBlob.set(blob, bytes);
+    }
+    documents.push({...metadata, bytes});
+  }
+  return {...board, documents};
 }
 
 export async function saveBoard(board: ChatBoard, expectedUpdatedAt?: number | null): Promise<void> {
@@ -105,8 +131,8 @@ export async function saveBoard(board: ChatBoard, expectedUpdatedAt?: number | n
   const {profileId, key, title, updatedAt, documents} = board;
   const summary = {profileId, key, title, updatedAt, documentCount: documents.length} satisfies StoredSummary;
   const database = await boardDatabase();
-  try {
-    await new Promise<void>((resolve, reject) => {
+  function write(record: StoredBoard) {
+    return new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(['boards', 'summaries'], 'readwrite');
       const boards = transaction.objectStore('boards');
       let writeError: unknown;
@@ -118,19 +144,34 @@ export async function saveBoard(board: ChatBoard, expectedUpdatedAt?: number | n
       }
       function store() {
         try {
-          boards.put(board);
+          boards.put(record);
           transaction.objectStore('summaries').put(summary);
         } catch (error) {abort(error);}
       }
       if (expectedUpdatedAt === undefined) {store(); return;}
 
-      const request = boards.get([profileId, key]) as IDBRequest<ChatBoard | undefined>;
+      const request = boards.get([profileId, key]) as IDBRequest<StoredBoard | undefined>;
       request.onsuccess = () => {
         const revision = request.result?.updatedAt ?? null;
         if (revision !== expectedUpdatedAt) {abort(new BoardError('board-conflict')); return;}
         store();
       };
     });
+  }
+  try {
+    if (useByteRecords) {
+      await write(await byteRecord(board));
+      return;
+    }
+    try {
+      await write(board);
+    } catch (error) {
+      // Some WebKit stores can serialize byte buffers but reject Blob records.
+      if (!documents.length || !(error instanceof DOMException)
+        || (error.name !== 'UnknownError' && error.name !== 'DataCloneError')) throw error;
+      await write(await byteRecord(board));
+      useByteRecords = true;
+    }
   } catch (error) {
     if (error instanceof BoardError) throw error;
     throw new BoardError('storage-unavailable');

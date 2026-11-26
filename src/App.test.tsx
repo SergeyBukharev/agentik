@@ -1,10 +1,11 @@
 import {afterEach,beforeEach,it,expect,vi} from 'vitest';
-import {render,screen,waitFor,fireEvent} from '@testing-library/react';
+import {render,screen,waitFor,fireEvent,within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import {saveAccess} from './access-client';
 import {ACCESS_DURATION_MS} from './access-contract';
-import type {Message} from './state';
+import {emptyState, saveState, type Message} from './state';
+import {activeProfile} from './session';
 
 const account = 'a'.repeat(32);
 const profileKey = () => `agentik:state:${localStorage.getItem('agentik:active:' + account)}`;
@@ -82,6 +83,38 @@ it('sends a demo request and saves it to history',async()=>{
  expect(await screen.findByText(/Это демонстрационный ответ/)).toBeInTheDocument();
  await u.click(screen.getByRole('link',{name:/История/}));
  expect(screen.getByRole('link',{name:/Помоги написать письмо/})).toBeInTheDocument();
+});
+it('shows saved message totals across an assistant’s conversations and ignores drafts', async () => {
+ const user = userEvent.setup();
+ const profile = activeProfile(account);
+ const updatedAt = Date.now();
+ const sent: Message = {role:'user', content:'Запрос'};
+ const reply: Message = {role:'assistant', content:'Ответ'};
+ saveState(localStorage, {...emptyState(), conversations:[
+  {id:'writer-first', assistantId:'writer', title:'Первый', updatedAt, messages:[sent, reply]},
+  {id:'writer-second', assistantId:'writer', title:'Второй', updatedAt, messages:[sent]},
+  {id:'chef-greeting', assistantId:'chef', title:'Приветствие', updatedAt, messages:[reply]},
+ ]}, profile.id, updatedAt, account);
+ render(<App/>);
+ const editor = () => screen.getByRole('link', {name:'Открыть: Редактор'});
+ const chef = () => screen.getByRole('link', {name:'Открыть: Шеф на кухне'});
+ expect(editor()).toHaveAccessibleDescription('Сообщений: 3');
+ expect(within(editor()).getByText('3', {exact:true})).toBeVisible();
+ expect(chef()).toHaveAccessibleDescription('');
+
+ await user.click(chef());
+ await user.type(await screen.findByRole('textbox', {name:'Ваше сообщение'}), 'Черновик');
+ location.hash = '#/assistants'; fireEvent(window, new HashChangeEvent('hashchange'));
+ await screen.findByRole('link', {name:'Открыть: Шеф на кухне'});
+ expect(chef()).toHaveAccessibleDescription('');
+ expect(editor()).toHaveAccessibleDescription('Сообщений: 3');
+
+ await user.click(chef());
+ expect(await screen.findByRole('textbox', {name:'Ваше сообщение'})).toHaveValue('Черновик');
+ await user.click(screen.getByRole('button', {name:'Отправить сообщение'}));
+ await screen.findByText(/Это демонстрационный ответ/);
+ location.hash = '#/assistants'; fireEvent(window, new HashChangeEvent('hashchange'));
+ expect(await screen.findByRole('link', {name:'Открыть: Шеф на кухне'})).toHaveAccessibleDescription('Сообщений: 3');
 });
 it('retries a failed request without duplicating user messages',async()=>{
  let attempts=0;const u=userEvent.setup();render(<App requestReply={async()=>{if(attempts++===0)throw new Error('Нет связи');return 'Готовый ответ';}}/>);

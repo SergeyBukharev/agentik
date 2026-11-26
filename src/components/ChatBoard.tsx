@@ -2,6 +2,9 @@ import {useEffect, useId, useRef, useState} from 'react';
 import {ArrowUpRight, Download, FileText, Files, Image, Plus, Trash2} from 'lucide-react';
 import {BoardError, getBoard, listBoards, MAX_BOARD_FILES, MAX_BOARD_FILE_BYTES, readBoardFile, saveBoard,
   type BoardDocument, type BoardSummary, type ChatBoard as BoardData} from '../chat-boards';
+import {MAX_CHAT_DOCUMENT_LENGTH, MAX_CHAT_DOCUMENT_NAME_LENGTH} from '../chat-contract';
+import type {ChatDraftAttachment} from '../chat-drafts';
+import {prepareChatImage} from '../chat-media';
 import {useUi, type Language} from '../language';
 import {AgentSelect} from './AgentSelect';
 import {ScreenSkeleton} from './ScreenSkeleton';
@@ -57,7 +60,7 @@ function fileError(cause: unknown, t: Translator) {
   }
 }
 
-function FilePreview({document}: {document: BoardDocument}) {
+function FilePreview({document, onEdit, working}: {document: BoardDocument; onEdit?: () => void; working: boolean}) {
   const {t} = useUi();
   const [object, setObject] = useState<{id: string; url: string}>();
   useEffect(() => {
@@ -83,6 +86,9 @@ function FilePreview({document}: {document: BoardDocument}) {
           </p>}
       </div>
       {url && <div className="chat-board__actions">
+        {onEdit && <button type="button" className="button button--primary" onClick={onEdit} disabled={working}>
+          <ArrowUpRight size={17} aria-hidden="true"/>{t('Редактировать в чате', 'Edit in chat')}
+        </button>}
         {document.type === 'application/pdf' && <a className="button button--secondary" href={url} target="_blank" rel="noopener noreferrer">
           <ArrowUpRight size={17} aria-hidden="true"/>{t('Открыть PDF', 'Open PDF')}
         </a>}
@@ -94,11 +100,12 @@ function FilePreview({document}: {document: BoardDocument}) {
   );
 }
 
-export function ChatBoard({profileId, boardKey, title, onUseText}: {
+export function ChatBoard({profileId, boardKey, title, onUseText, onUseAttachment}: {
   profileId: string;
   boardKey: string;
   title: string;
   onUseText: (text: string) => boolean;
+  onUseAttachment: (attachment: ChatDraftAttachment) => void;
 }) {
   const {language, t} = useUi();
   const headingId = useId();
@@ -106,6 +113,7 @@ export function ChatBoard({profileId, boardKey, title, onUseText}: {
   const input = useRef<HTMLInputElement>(null);
   const uploadButton = useRef<HTMLButtonElement>(null);
   const preview = useRef<HTMLElement>(null);
+  const editRequest = useRef<symbol | undefined>(undefined);
   const [board, setBoard] = useState<BoardData | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [revision, retry] = useState(0);
@@ -127,7 +135,7 @@ export function ChatBoard({profileId, boardKey, title, onUseText}: {
     void getBoard(profileId, boardKey).then(saved => {
       if (active) setBoard(saved ?? emptyBoard(profileId, boardKey, title));
     }).catch(() => { if (active) setLoadFailed(true); });
-    return () => { active = false; };
+    return () => { active = false; editRequest.current = undefined; };
   }, [profileId, boardKey, title, revision]);
 
   const documents = board?.documents ?? [];
@@ -209,6 +217,33 @@ export function ChatBoard({profileId, boardKey, title, onUseText}: {
     }
   }
 
+  async function editFile(file: BoardDocument) {
+    if (working || editRequest.current) return;
+    if (file.text?.trim()) {
+      onUseAttachment({kind:'document', document:{id:file.id, name:file.name.slice(0, MAX_CHAT_DOCUMENT_NAME_LENGTH),
+        text:file.text.slice(0, MAX_CHAT_DOCUMENT_LENGTH),
+        ...(file.textTruncated || file.text.length > MAX_CHAT_DOCUMENT_LENGTH ? {truncated:true} : {})}});
+      return;
+    }
+    if (!isImage(file)) return;
+    const route = location.hash;
+    const request = Symbol();
+    editRequest.current = request;
+    setWorking(true);
+    setNotice('');
+    try {
+      const image = await prepareChatImage(new File([file.blob], file.name, {type:file.type}));
+      if (editRequest.current === request && location.hash === route) onUseAttachment({kind:'image', image});
+    } catch {
+      if (editRequest.current === request) setNotice(t('Изображение не удалось подготовить для чата.', 'The image could not be prepared for the chat.'));
+    } finally {
+      if (editRequest.current === request) {
+        editRequest.current = undefined;
+        setWorking(false);
+      }
+    }
+  }
+
   return (
     <section className="chat-board" aria-labelledby={headingId}>
       <header className="chat-board__header">
@@ -261,7 +296,8 @@ export function ChatBoard({profileId, boardKey, title, onUseText}: {
               <button type="button" className="button button--secondary chat-board__remove" disabled={working} onClick={() => void removeFile()}>{t('Удалить', 'Remove')}</button>
             </div>
           </div>}
-          <FilePreview key={selected.id} document={selected}/>
+          <FilePreview key={selected.id} document={selected} working={working}
+            onEdit={selected.text?.trim() || isImage(selected) ? () => void editFile(selected) : undefined}/>
           {selected.text?.trim() && <div className="chat-board__draft-tools">
             <p className="chat-board__hint">{t('В черновик чата добавятся фрагменты файлов.', 'Excerpts from the files go into your chat draft.')}</p>
             <div className="chat-board__actions">

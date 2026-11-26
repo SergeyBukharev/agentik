@@ -1,6 +1,7 @@
 import {useRef, useState, type CSSProperties, type RefObject} from 'react';
-import {ArrowDownLeft, ArrowUpRight, ImagePlus, Mic, Send, X} from 'lucide-react';
-import {MAX_CHAT_MESSAGE_LENGTH} from '../chat-contract';
+import {ArrowDownLeft, ArrowUpRight, FileText, ImagePlus, Mic, Send, X} from 'lucide-react';
+import {MAX_CHAT_MESSAGE_LENGTH, type ChatDocument} from '../chat-contract';
+import type {ChatDraftAttachment} from '../chat-drafts';
 import {CHAT_MODELS, prepareChatImage, type ChatImage, type ChatModel} from '../chat-media';
 import {useUi, type Language} from '../language';
 import {useDictation} from '../useDictation';
@@ -24,6 +25,15 @@ export function MessageImages({images}: {images?: ChatImage[]}) {
   )}</div>;
 }
 
+export function DocumentLabel({file}: {file: ChatDocument}) {
+  const {t} = useUi();
+  return <span className="chat-document">
+    <FileText size={16} aria-hidden="true"/>
+    <span className="chat-document__name" title={file.name}>{file.name}</span>
+    {file.truncated && <small>{t('Фрагмент', 'Excerpt')}</small>}
+  </span>;
+}
+
 function Transcript({text}: {text: string}) {
   let index = 0;
   return <span className="transcript" role="status"><span className="sr-only">{text}</span>
@@ -36,7 +46,7 @@ function Transcript({text}: {text: string}) {
 }
 
 export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 'message', language, busy = false, disabled = false,
-  model, onModel, fieldRef, price, retryDraft = false}: {
+  model, onModel, fieldRef, price, retryDraft = false, attachment, onRemoveAttachment}: {
     draft: string;
     onDraft: (text: string) => void;
     onSubmit: (images: ChatImage[], anchor: HTMLElement | null) => boolean | Promise<boolean>;
@@ -50,6 +60,8 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
     fieldRef?: RefObject<HTMLTextAreaElement | null>;
     price?:number;
     retryDraft?:boolean;
+    attachment?: ChatDraftAttachment;
+    onRemoveAttachment?: () => void;
 }) {
   const ui = useUi();
   const lang = language ?? ui.language;
@@ -62,7 +74,9 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
   const [sending, setSending] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const locked = busy || sending;
-  const [image, setImage] = useState<ChatImage>();
+  const [uploadedImage, setImage] = useState<ChatImage>();
+  const image = uploadedImage ?? (attachment?.kind === 'image' ? attachment.image : undefined);
+  const attachedDocument = attachment?.kind === 'document' ? attachment.document : undefined;
   const [loading, setLoading] = useState(false);
   const [hint, setHint] = useState('');
   const [required, setRequired] = useState(false);
@@ -89,8 +103,9 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
 
   async function submit() {
     if (submitting.current || busy || disabled || loading || microphone.phase !== 'idle') return;
-    if (!draft.trim() && !image) {
-      const message = t('Напишите сообщение или прикрепите изображение.', 'Write a message or attach an image.');
+    if (!draft.trim() && (attachedDocument || !image)) {
+      const message = attachedDocument ? t('Укажите, что изменить в файле.', 'Describe what to change in the file.')
+        : t('Напишите сообщение или прикрепите изображение.', 'Write a message or attach an image.');
       setHint(message);
       setRequired(true);
       onValidate?.(message);
@@ -119,7 +134,10 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
     setLoading(true);
     setHint('');
     setRequired(false);
-    try { setImage(await prepareChatImage(file)); }
+    try {
+      setImage(await prepareChatImage(file));
+      if (attachment?.kind === 'image') onRemoveAttachment?.();
+    }
     catch { setHint(t('Выберите PNG, JPEG, WebP, AVIF или GIF до 12 МБ.', 'Choose a PNG, JPEG, WebP, AVIF or GIF up to 12 MB.')); }
     finally { setLoading(false); }
   }
@@ -129,11 +147,24 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
       {transcript && <Transcript key={transcript.id} text={transcript.text}/>}
       {hint && <p className="composer__hint notice notice--error" id={messageId+'-hint'} role="alert">{hint}</p>}
       <form className="composer composer--tools" onSubmit={event => {event.preventDefault(); void submit();}} noValidate>
+        {attachedDocument && <div className="composer__document">
+          <DocumentLabel file={attachedDocument}/>
+          <button type="button" className="icon-button" disabled={locked} aria-label={t('Убрать файл из черновика', 'Remove file from draft')}
+            onClick={() => {
+              onRemoveAttachment?.();
+              setHint('');
+              setRequired(false);
+              field.current?.focus({preventScroll:true});
+            }}><X size={17} aria-hidden="true"/></button>
+        </div>}
         {image && <div className="composer__attachment"><img src={image.url} alt=""/><span>{image.name}</span>
-          <button type="button" className="icon-button" disabled={locked} onClick={() => setImage(undefined)} aria-label={t('Удалить изображение', 'Remove image')}><X size={17}/></button></div>}
+          <button type="button" className="icon-button" disabled={locked} onClick={() => {
+            setImage(undefined);
+            if (attachment?.kind === 'image') onRemoveAttachment?.();
+          }} aria-label={t('Удалить изображение', 'Remove image')}><X size={17}/></button></div>}
         <label htmlFor={messageId} className="sr-only">{messageId === 'room-message' ? t('Сообщение участникам','Message to members') : t('Ваше сообщение','Your message')}</label>
         <div className="composer__editor">
-          <textarea id={messageId} ref={field} className="composer__input" placeholder={t('Напишите сообщение…', 'Write a message…')}
+          <textarea id={messageId} ref={field} className="composer__input" placeholder={attachedDocument ? t('Что нужно изменить?', 'What should change?') : t('Напишите сообщение…', 'Write a message…')}
             data-expanded={expanded} value={draft} maxLength={MAX_CHAT_MESSAGE_LENGTH} readOnly={locked} aria-invalid={required || undefined}
             aria-describedby={hint ? messageId+'-hint' : undefined}
             onChange={event => {onDraft(event.target.value); if(required) {setRequired(false); setHint('');}}}

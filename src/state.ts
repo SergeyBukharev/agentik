@@ -1,7 +1,8 @@
 import {isChatImage, type ChatImage} from './chat-media';
+import {isChatDocument, type ChatDocument} from './chat-contract';
 import type { Assistant } from './catalog';
 import {SESSION_MS,listProfiles,saveProfile} from './session';
-export type Message = {role:'user'|'assistant'; content:string; turnId?:string; images?:ChatImage[]};
+export type Message = {role:'user'|'assistant'; content:string; turnId?:string; images?:ChatImage[]; document?:ChatDocument};
 export type Conversation = {id:string; assistantId:string; title:string; updatedAt:number; messages:Message[]};
 export type AppState = {version:1;favorites:string[];custom:Assistant[];conversations:Conversation[];startedChat?:true};
 export const emptyState = ():AppState => ({version:1,favorites:[],custom:[],conversations:[]});
@@ -13,7 +14,9 @@ function isAssistant(a:unknown):a is Assistant {
 function isConversation(c:unknown):c is Conversation {
   if(!c||typeof c!=='object')return false;
   const x=c as Conversation;
-  return typeof x.id==='string'&&typeof x.assistantId==='string'&&typeof x.title==='string'&&Number.isFinite(x.updatedAt)&&Array.isArray(x.messages)&&x.messages.every(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string'&&(m.images===undefined||(Array.isArray(m.images)&&m.images.length<=1&&m.images.every(isChatImage))));
+  return typeof x.id==='string'&&typeof x.assistantId==='string'&&typeof x.title==='string'&&Number.isFinite(x.updatedAt)&&Array.isArray(x.messages)&&x.messages.every(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string'
+    &&(m.images===undefined||(Array.isArray(m.images)&&m.images.length<=1&&m.images.every(isChatImage)))
+    &&(m.document===undefined||(m.role==='user'&&isChatDocument(m.document))));
 }
 export function readState(storage:Pick<Storage,'getItem'>,profileId?:string,now=Date.now()):{state:AppState;status:'ok'|'missing'|'corrupt'|'unavailable'} {
   let raw:string|null;

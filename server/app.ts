@@ -1,11 +1,27 @@
 import {createAccess, type AccessConfig} from './access.ts';
 import {isChatImage, isChatModel, type ChatImage, type ChatModel} from '../src/chat-media.ts';
-import {MAX_MEDIA_CHAT_BODY_BYTES, MAX_CHAT_BODY_BYTES, MAX_CHAT_MESSAGES, MAX_CHAT_MESSAGE_LENGTH} from '../src/chat-contract.ts';
+import {isChatDocument, MAX_MEDIA_CHAT_BODY_BYTES, MAX_CHAT_BODY_BYTES, MAX_CHAT_MESSAGES, MAX_CHAT_MESSAGE_LENGTH, type ChatDocument} from '../src/chat-contract.ts';
 import {TELEGRAM_SHARE_PREFIX} from '../src/telegram-share-contract.ts';
 import type {TelegramShareHandler} from './telegram-shares.ts';
 
 type Provider = {apiKey?:string;apiBase?:string;model?:string;vision?:boolean;authScheme?:'Bearer'|'Api-Key';project?:string};
-type Turn = {role:'user'|'assistant';content:string;images?:ChatImage[]};
+type Turn = {role:'user'|'assistant';content:string;images?:ChatImage[];document?:ChatDocument};
+
+function isChatTurn(value: unknown, media: boolean): value is Turn {
+ if (!value || typeof value !== 'object') return false;
+ const {role, content, images, document} = value as Partial<Turn>;
+ return (role === 'user' || role === 'assistant') && typeof content === 'string' && content.length <= MAX_CHAT_MESSAGE_LENGTH
+   && (!!content.trim() || !!images?.length)
+   && (images === undefined || (media && role === 'user' && Array.isArray(images) && images.length === 1 && images.every(isChatImage)))
+   && (document === undefined || (role === 'user' && !!content.trim() && isChatDocument(document)));
+}
+
+function textWithDocument(message: Turn, english: boolean) {
+ const {content, document} = message;
+ if (!document) return content;
+ const label = document.truncated ? (english ? 'File excerpt' : 'Фрагмент файла') : (english ? 'Attached file' : 'Прикреплённый файл');
+ return `${content}\n\n${label} — ${document.name}\n${document.text}${document.truncated ? '\n[…]': ''}`;
+}
 export type ServerConfig=Provider & {providers?:Partial<Record<Exclude<ChatModel,'auto'>,Provider>>;localToken?:string;origin?:string;origins?:string[];supabaseUrl?:string;supabaseKey?:string;fetcher?:typeof fetch;access?:AccessConfig;telegramShares?:TelegramShareHandler};
 export function createHandler(config:ServerConfig) {
  const fetcher=config.fetcher??fetch;
@@ -59,7 +75,7 @@ export function createHandler(config:ServerConfig) {
    const bytes=new Uint8Array(size);let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}
    payload=JSON.parse(new TextDecoder().decode(bytes));
   }catch{return out(400,{error:'Некорректный JSON.'});}
-  if(!payload?.assistant||typeof payload.assistant.instruction!=='string'||payload.assistant.instruction.length>4000||!payload.assistant.instruction.trim()||!Array.isArray(payload.messages)||!payload.messages.length||payload.messages.length>MAX_CHAT_MESSAGES||!payload.messages.every((m:any)=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string'&&(m.content.trim()||m.images?.length)&&m.content.length<=MAX_CHAT_MESSAGE_LENGTH&&(m.images===undefined||(media&&m.role==='user'&&Array.isArray(m.images)&&m.images.length===1&&m.images.every(isChatImage))))||payload.messages.at(-1).role!=='user')return out(400,{error:'Проверьте сообщения: до 6000 символов каждое, не более 20 сообщений.'});
+  if(!payload?.assistant||typeof payload.assistant.instruction!=='string'||payload.assistant.instruction.length>4000||!payload.assistant.instruction.trim()||!Array.isArray(payload.messages)||!payload.messages.length||payload.messages.length>MAX_CHAT_MESSAGES||!payload.messages.every((message:unknown)=>isChatTurn(message,media))||payload.messages.at(-1).role!=='user')return out(400,{error:'Проверьте сообщения: до 6000 символов каждое, не более 20 сообщений.'});
   const choice = payload.model ?? 'auto';
   if (!isChatModel(choice)) return out(400,{error:'Неизвестная модель.'});
   const messages:Turn[] = payload.messages;
@@ -72,13 +88,14 @@ export function createHandler(config:ServerConfig) {
     : config.providers?.[choice];
   if(!provider?.apiKey||!provider.model)return out(503,{error:'Выбранная модель ещё не настроена. Используйте другую модель или деморежим.'});
   if (images.length && !provider.vision) return out(422,{error:'Эта модель принимает только текст. Для изображения выберите модель с поддержкой изображений.'});
-  const providerMessages = messages.map(message => ({
-    role:message.role,
-    content: message.images?.length ? [
-      {type:'text',text:message.content || (payload.language==='en' ? 'Describe the image.' : 'Опиши изображение.')},
+  const english = payload.language === 'en';
+  const providerMessages = messages.map(message => {
+    const text = textWithDocument(message, english);
+    return {role:message.role, content:message.images?.length ? [
+      {type:'text',text:text || (english ? 'Describe the image.' : 'Опиши изображение.')},
       ...message.images.map(image=>({type:'image_url',image_url:{url:image.url}})),
-    ] : message.content,
-  }));
+    ] : text};
+  });
   const system = payload.language === 'en' ? payload.assistant.instruction+' Respond in English unless requested otherwise.' : payload.assistant.instruction;
   const now=Date.now();for(const[k,v]of hits)if(now-v.start>60000)hits.delete(k);
   if(hits.size>=10000&&!hits.has(identity))return out(429,{error:'Сервис занят. Повторите позже.'});

@@ -61,3 +61,21 @@
 }
 
 @layer responsive { @media(max-width:640px){.category-list{scrollbar-width:none}.category-list::-webkit-scrollbar{display:none}.topbar__menu{display:none}} }
+
+@layer components {
+ .agent-card__footer:has(> .agent-card__messages) { gap: 8px; }
+ .agent-card__footer:has(> .agent-card__messages) > :first-child {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+ }
+ .agent-card__footer > .agent-card__messages {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 4px;
+  padding: 0;
+  background: transparent;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+ }
+}

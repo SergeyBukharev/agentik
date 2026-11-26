@@ -27,6 +27,20 @@ it('returns provider text using server-selected model and system prompt',async()
  const r=await h(req());expect(r.status).toBe(200);expect(await r.json()).toEqual({reply:'Здравствуйте'});
  expect(sent.model).toBe('my-model');expect(sent.messages[0]).toEqual({role:'system',content:'Помогай писать'});
 });
+it('includes the attached document in the model request and rejects an oversized attachment',async()=>{
+ const fetcher=vi.fn(async (_url:RequestInfo|URL, _init?:RequestInit)=>Response.json({choices:[{message:{content:'Исправленный текст'}}]}));
+ const handler=createHandler({...config,apiKey:'fixture',model:'test',fetcher});
+ const document={id:'board-file',name:'notes.txt',text:'Второй абзац.\nДетали.'};
+ const message={role:'user',content:'Сократи текст.',document};
+ expect((await handler(req({...body,messages:[message]}))).status).toBe(200);
+ const upstream=JSON.parse(String(fetcher.mock.calls[0][1]?.body));
+ expect(upstream.messages.at(-1)).toMatchObject({role:'user',content:expect.stringContaining(document.text)});
+ expect(upstream.messages.at(-1).content).toContain(message.content);
+ expect(upstream.messages.at(-1).content).toContain(document.name);
+ const oversized={...message,document:{...document,text:'x'.repeat(4001)}};
+ expect((await handler(req({...body,messages:[oversized]}))).status).toBe(400);
+ expect(fetcher).toHaveBeenCalledOnce();
+});
 it('hides upstream error payloads and handles invalid success responses',async()=>{
  for(const upstream of [Response.json({secret:'key'},{status:429}),Response.json({choices:[]})]){
  const r=await createHandler({...config,apiKey:'key',model:'test',fetcher:async()=>upstream})(req());
