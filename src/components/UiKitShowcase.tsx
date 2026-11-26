@@ -1,4 +1,4 @@
-import {useState, type ReactNode} from 'react';
+import {useRef, useState, type ReactNode} from 'react';
 import {Check, ChevronRight, Plus, WifiOff} from 'lucide-react';
 import {catalog} from '../catalog';
 import {type ChatImage, type ChatModel} from '../chat-media';
@@ -21,6 +21,7 @@ function Example({title, children}: {title:string; children:ReactNode}) {
 export function UiKitShowcase() {
   const {language, setLanguage, t} = useUi();
   const [dialog, setDialog] = useState<'dialog' | 'pro' | 'group'>();
+  const dialogOpener = useRef<HTMLButtonElement>(null);
   const [category, setCategory] = useState('Все');
   const [entry, setEntry] = useState('');
   const [tried, setTried] = useState(false);
@@ -29,6 +30,11 @@ export function UiKitShowcase() {
   const [skeleton, setSkeleton] = useState(false);
   const [chat, setChat] = useState(false);
   const entryError = tried && !entry.trim();
+
+  function openDialog(kind: NonNullable<typeof dialog>, opener: HTMLButtonElement) {
+    dialogOpener.current = opener;
+    setDialog(kind);
+  }
 
   return <>
     <section className="kit-section" aria-labelledby="kit-controls">
@@ -42,10 +48,10 @@ export function UiKitShowcase() {
         </Example>
         <Example title={t('Кнопки и диалоги','Buttons and dialogs')}>
           <div className="kit-actions">
-            <button type="button" className="button button--primary" onClick={() => setDialog('dialog')}>{t('Открыть диалог','Open dialog')}</button>
-            <button type="button" className="button button--secondary" onClick={() => setDialog('group')}><Plus size={16} aria-hidden="true"/>{t('Новый чат','New chat')}</button>
+            <button type="button" className="button button--primary" onClick={event => openDialog('dialog', event.currentTarget)}>{t('Открыть диалог','Open dialog')}</button>
+            <button type="button" className="button button--secondary" onClick={event => openDialog('group', event.currentTarget)}><Plus size={16} aria-hidden="true"/>{t('Новый чат','New chat')}</button>
             <button type="button" className="button button--secondary" disabled>{t('Недоступно','Disabled')}</button>
-            <ProButton label={t('Купить PRO','Get PRO')} onClick={() => setDialog('pro')}/>
+            <ProButton label={t('Купить PRO','Get PRO')} onClick={event => openDialog('pro', event.currentTarget)}/>
           </div>
         </Example>
         <Example title={t('Поля и меню выбора','Fields and selection menus')}>
@@ -89,7 +95,7 @@ export function UiKitShowcase() {
             </div>
             <div className="agent-card__link"><p className="agent-card__title">{t('Редактор','Editor')}</p></div>
           </article>
-          <button type="button" className="history-item kit-room" onClick={() => setDialog('group')}><span className="avatar avatar--lime"><AgentIcon name="Users"/></span>
+          <button type="button" className="history-item kit-room" onClick={event => openDialog('group', event.currentTarget)}><span className="avatar avatar--lime"><AgentIcon name="Users"/></span>
             <span className="history-item__text"><strong>{t('План недели','Weekly plan')}</strong><span>{t('Групповой чат · 2 участника','Group chat · 2 members')}</span></span>
             <ChevronRight size={18} aria-hidden="true"/>
           </button>
@@ -125,7 +131,7 @@ export function UiKitShowcase() {
     </aside>
     {dialog && <Modal title={dialog === 'pro' ? 'Agentik PRO' : dialog === 'group' ? t('Пример группового чата','Group chat example') : t('Пример диалога','Dialog example')}
       description={dialog === 'group' ? t('План недели · 2 участника','Weekly plan · 2 members') : t('Это интерактивный образец компонента.','This is an interactive component example.')}
-      onClose={() => setDialog(undefined)}>
+      onClose={() => setDialog(undefined)} returnFocus={() => dialogOpener.current}>
       <button type="button" className="button button--secondary" onClick={() => setDialog(undefined)}>{t('Готово','Done')}</button>
     </Modal>}
   </>;

@@ -1,5 +1,5 @@
 import {lazy, memo, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type RefObject} from 'react';
-import {ChevronLeft, Table2, WifiOff, X} from 'lucide-react';
+import {ChevronLeft, Link2, Table2, WifiOff, X} from 'lucide-react';
 import type {Assistant} from '../catalog';
 import {lastChatMessageIndex, type Conversation} from '../state';
 import {usePinnedChatThread} from '../usePinnedChatThread';
@@ -86,19 +86,21 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
   const lastMessage = conversation?.messages[lastChatMessageIndex(conversation.messages)];
   const canRetry = !busy && lastMessage?.role === 'user';
   const hasMessages = Boolean(conversation?.messages.length);
-  const suggestions = <ChatSuggestions assistant={assistant} draft={draft} compact={hasMessages} busy={busy}
+  const watchWithLeo = assistant.id === 'leo';
+  function applySuggestion(next: string) {
+    const field = draftField.current;
+    if (!field || field.readOnly) return;
+    onDraft(next);
+    field.focus();
+  }
+  const suggestions = <ChatSuggestions assistant={assistant} draft={draft} compact={hasMessages || watchWithLeo} busy={busy}
     onCreateBudget={onCreateBudget && (opener => {
       const conversationId = onCreateBudget();
       if (!conversationId) return;
       if (!conversation) composer.current.createdId = conversationId;
       setBudgetDialog({conversationId, opener});
     })}
-    onApply={next => {
-      const field = draftField.current;
-      if (!field || field.readOnly) return;
-      onDraft(next);
-      field.focus();
-    }}/>;
+    onApply={applySuggestion}/>;
 
   return (
     <section className="chat chat--docked">
@@ -129,15 +131,27 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
       <div className="chat__thread" ref={thread} tabIndex={0} role="region" aria-label={t('История сообщений','Message history')}>
         <ChatBoardTabs assistantId={assistant.id} conversationId={conversation?.id} active="chat"/>
         <div className="chat__messages" aria-live="polite" aria-busy={busy} data-long-thread={(conversation?.messages.length ?? 0) > 60 || undefined}>
-          {conversation?.messages.length ? <PrivateMessages messages={conversation.messages} assistantName={assistant.name}
-            userName={t('Вы','You')} budgetCard={budgetCard} onOpenBudget={openSavedBudget}/> : (
+          {!hasMessages && (
             <div className="chat-welcome">
               <span className={`avatar avatar--large avatar--${assistant.color}`}><AgentIcon name={assistant.icon} size={32}/></span>
               <WelcomeTitle key={routeKey}/>
               <p className="chat-welcome__text">{assistant.description}</p>
-              {suggestions}
+              {!watchWithLeo && suggestions}
             </div>
           )}
+          {watchWithLeo && <article className="message message--assistant" aria-label={t('Совместный просмотр с Лео', 'Watch together with Leo')}>
+            <span className="message__author">{assistant.name}</span>
+            <p className="message__body message__stream-copy">{t(
+              'У нас есть расширение для совместного просмотра на YouTube и VK Видео. Вставь ссылку на стрим или ролик. Пока смотрим, спрашивай про отсылки, сложные темы и незнакомые слова.',
+              'We have a browser extension for watching together on YouTube and VK Video. Paste a link to a stream or video. While we watch, ask me about references, tricky topics, or unfamiliar words.',
+            )}</p>
+            <button type="button" className="button button--secondary message__stream-action"
+              disabled={busy || offlineAi} onClick={() => applySuggestion(draft)}>
+              <Link2 size={18} aria-hidden="true"/>{t('Добавить ссылку на стрим', 'Add a stream link')}
+            </button>
+          </article>}
+          {hasMessages && conversation && <PrivateMessages messages={conversation.messages} assistantName={assistant.name}
+            userName={t('Вы','You')} budgetCard={budgetCard} onOpenBudget={openSavedBudget}/>}
           {busy && <p role="status" className="chat__loading chat__loading--skeleton" data-skeleton-level="surface"><span/>{t('Готовим ответ…','Preparing a reply…')}</p>}
         </div>
         {offlineAi && <p role="status" className="offline-note"><WifiOff size={16}/> {t('Подключитесь к интернету, чтобы отправить запрос AI.','Connect to the internet to send an AI request.')}</p>}
@@ -147,7 +161,7 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
             <button className="button button--text" disabled={offlineAi} onClick={() => onSend(true, null)}>{t('Повторить запрос','Try again')}</button>
           </div>
         )}
-        {hasMessages && suggestions}
+        {(hasMessages || watchWithLeo) && suggestions}
       </div>
       <ChatComposer key={composer.current.epoch} fieldRef={draftField} draft={draft} onDraft={onDraft}
         busy={busy} disabled={offlineAi} model={model} onModel={onModel}

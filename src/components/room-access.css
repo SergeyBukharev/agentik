@@ -126,3 +126,15 @@
     flex: 1 1 auto;
   }
 }
+
+@media (max-height: 500px) and (orientation: landscape),
+  (max-device-height: 500px) and (any-pointer: coarse) and (orientation: landscape) {
+  .rooms__invitation.empty-state {
+    gap: 12px;
+    padding-block: 16px;
+  }
+
+  .rooms__invitation > .scene {
+    display: none;
+  }
+}

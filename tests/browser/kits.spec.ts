@@ -1,5 +1,5 @@
 import {readFile} from 'node:fs/promises';
-import {expect, test} from '@playwright/test';
+import {devices, expect, test} from '@playwright/test';
 import {expectNoHorizontalScroll, workspace} from './helpers';
 
 test('aligns agreement and kits with the logo on wide screens and stacks them on mobile', async ({page}) => {
@@ -71,6 +71,110 @@ test('renders public kit pages at 320px and demonstrates live component states',
   await expect(page.getByRole('heading', {name:'Пресс-кит'})).toBeVisible();
   await expect(page.getByRole('link', {name:'Скачать знак'})).toHaveAttribute('download', 'agentik-mark.svg');
   await expectNoHorizontalScroll(page);
+});
+
+test.describe('390px phone with a wide virtual viewport', () => {
+  const {viewport, userAgent, deviceScaleFactor, isMobile, hasTouch} = devices['iPhone 13'];
+  test.use({viewport, screen:viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, reducedMotion:'reduce', serviceWorkers:'block'});
+
+  test.beforeEach(async ({page}) => {
+    await page.route('**/agentik/', async route => {
+      const response = await route.fetch();
+      // Reproduce mobile desktop mode, where the browser ignores the viewport declaration.
+      const body = (await response.text()).replace(/<meta name="viewport"[^>]*>/u, '');
+      await route.fulfill({response, body});
+    });
+  });
+
+  test('fits wordmark cards and their download controls to the phone', async ({page}) => {
+    await page.goto(workspace + '#/brand-kit');
+    await expect(page.locator('html')).toHaveAttribute('data-wide-phone-viewport', '');
+    const cards = page.locator('.kit-logo-card');
+    await expect(cards).toHaveCount(2);
+    const first = (await cards.first().boundingBox())!;
+    const second = (await cards.last().boundingBox())!;
+    expect(second.y).toBeGreaterThanOrEqual(first.y + first.height);
+
+    for (const button of await cards.getByRole('button').all()) {
+      const fits = await button.evaluate(node => {
+        const bounds = node.getBoundingClientRect();
+        const contents = document.createRange();
+        contents.selectNodeContents(node);
+        const label = contents.getBoundingClientRect();
+        return label.left >= bounds.left && label.right <= bounds.right;
+      });
+      expect(fits).toBe(true);
+    }
+    await expectNoHorizontalScroll(page);
+  });
+
+  test('opens the PNG menu fully above a trigger near the bottom', async ({page}) => {
+    await page.goto(workspace + '#/brand-kit');
+    await expect(page.locator('html')).toHaveAttribute('data-wide-phone-viewport', '');
+    const trigger = page.getByRole('button', {name:'Скачать PNG'}).last();
+    await trigger.evaluate(node => {
+      const viewport = window.visualViewport!;
+      const bottom = viewport.offsetTop + viewport.height;
+      window.scrollBy(0, node.getBoundingClientRect().bottom - bottom + 68 / viewport.scale);
+      (node as HTMLElement).focus({preventScroll:true});
+    });
+    await page.keyboard.press('ArrowDown');
+    const menu = page.getByRole('menu', {name:'Скачать PNG'});
+    await expect(menu.getByRole('menuitem', {name:/1×/})).toBeFocused();
+    const options = (await menu.boundingBox())!;
+    expect(options.y + options.height).toBeLessThan((await trigger.boundingBox())!.y);
+    await expect(menu).toBeInViewport({ratio:1});
+    await page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+    await expect(trigger).toBeFocused();
+  });
+
+  test('stacks UI examples and the press summary on the phone', async ({page}) => {
+    await page.goto(workspace + '#/ui-kit');
+    await expect(page.locator('html')).toHaveAttribute('data-wide-phone-viewport', '');
+    const examples = page.locator('.kit-example');
+    const first = (await examples.nth(0).boundingBox())!;
+    const second = (await examples.nth(1).boundingBox())!;
+    expect(second.y).toBeGreaterThanOrEqual(first.y + first.height);
+    for (const [label, title] of [['Открыть диалог', 'Пример диалога'], ['Купить PRO', 'Agentik PRO']]) {
+      const dialogButton = page.getByRole('button', {name:label});
+      await dialogButton.click();
+      const dialog = page.getByRole('dialog', {name:title});
+      await expect(dialog).toBeInViewport({ratio:1});
+      await page.keyboard.press('Escape');
+      await expect(dialogButton).toBeFocused();
+    }
+    await expectNoHorizontalScroll(page);
+
+    await page.getByRole('link', {name:'Пресс-кит', exact:true}).click();
+    const summary = page.locator('.kit-press');
+    const text = (await summary.locator('.kit-credit').boundingBox())!;
+    const image = (await summary.locator('img').boundingBox())!;
+    expect(image.y).toBeGreaterThanOrEqual(text.y + text.height);
+    await expectNoHorizontalScroll(page);
+  });
+
+  test('opens the UI kit selector next to its trigger inside the screen', async ({page}) => {
+    await page.goto(workspace + '#/ui-kit');
+    await expect(page.locator('html')).toHaveAttribute('data-wide-phone-viewport', '');
+    const trigger = page.getByRole('combobox', {name:'Режим ответов', includeHidden:true});
+    await trigger.evaluate(node => node.scrollIntoView({block:'center'}));
+    await trigger.press('Enter');
+    const listbox = page.getByRole('listbox', {name:'Режим ответов'});
+    await expect(listbox.getByRole('option', {name:'Деморежим'})).toBeFocused();
+    const scale = await page.evaluate(() => window.visualViewport!.scale);
+    await expect.poll(async () => {
+      const anchor = (await trigger.boundingBox())!;
+      const menu = (await listbox.boundingBox())!;
+      const distance = Math.min(Math.abs(menu.y - (anchor.y + anchor.height)), Math.abs(anchor.y - (menu.y + menu.height)));
+      return distance * scale;
+    }).toBeLessThan(16);
+    await expect(listbox).toBeInViewport({ratio:1});
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(trigger).toContainText('Подключённая модель');
+    await expect(trigger).toBeFocused();
+  });
 });
 
 const logoVariants = [['light', 'На светлом фоне'], ['dark', 'На тёмном фоне']] as const;

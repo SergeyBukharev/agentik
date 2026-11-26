@@ -6,7 +6,7 @@
 }
 .agreement__intro {
   margin-bottom: 22px;
-  padding: clamp(22px,4vw,34px);
+  padding: clamp(22px, calc(var(--viewport-width) * .04), 34px);
   border-radius: 20px;
   background: var(--soft);
 }
@@ -33,7 +33,7 @@
 .agreement__clause {
   display: grid;
   gap: 7px;
-  padding: 16px clamp(2px,1vw,10px);
+  padding: 16px clamp(2px, calc(var(--viewport-width) * .01), 10px);
   border-bottom: 1px solid var(--line);
 }
 .agreement__clause h2 {
@@ -51,11 +51,11 @@
   border-radius: 21px;
   background: var(--surface);
   box-shadow: var(--shadow);
-  padding: clamp(15px,4vw,28px);
+  padding: clamp(15px, calc(var(--viewport-width) * .04), 28px);
 }
 .agreement__signature-head {
   display: flex;
-  gap: clamp(6px,2.4vw,20px);
+  gap: clamp(6px, calc(var(--viewport-width) * .024), 20px);
   justify-content: space-between;
   align-items: center;
   margin-block-end: 14px;
@@ -66,12 +66,13 @@
 .agreement__signature-head h2 {
   margin-block-end: 5px;
   font-family: 'Manrope Variable',sans-serif;
-  font-size: clamp(17px,3vw,23px);
+  font-size: clamp(17px, calc(var(--viewport-width) * .03), 23px);
   line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 .agreement__art {
   display: block;
-  width: clamp(77px,24vw,176px);
+  width: clamp(77px, calc(var(--viewport-width) * .24), 176px);
   height: auto;
   flex: none;
 }
@@ -102,7 +103,7 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  min-height: clamp(148px,28vw,214px);
+  min-height: clamp(148px, calc(var(--viewport-width) * .28), 214px);
   border: 1px dashed var(--line);
   border-radius: 12px;
   background: var(--canvas);

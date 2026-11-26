@@ -40,35 +40,6 @@
   aspect-ratio: 1;
 }
 
-.hero__ripple {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.hero__ripple-wave {
-  position: absolute;
-  inline-size: var(--wave-size);
-  block-size: var(--wave-size);
-  background: radial-gradient(circle closest-side, transparent 54%,
-    color-mix(in oklch, var(--brand-ink) 9%, transparent) 65%,
-    color-mix(in oklch, var(--brand-lime) 36%, transparent) 73%,
-    color-mix(in oklch, var(--focus) 16%, transparent) 78%, transparent 88%);
-  animation: hero-ripple 1.05s cubic-bezier(.19, .52, .24, 1) both;
-}
-
-@keyframes hero-ripple {
-  from { opacity: 0; transform: translate(-50%, -50%) scale(.035); }
-  19% { opacity: .82; }
-  55% { opacity: .56; }
-  to { opacity: 0; transform: translate(-50%, -50%) scale(var(--wave-scale)); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero__ripple { visibility: hidden; }
-}
-
 .hero-mark .reveal-media {
   width: 57.14%;
   aspect-ratio: 1;

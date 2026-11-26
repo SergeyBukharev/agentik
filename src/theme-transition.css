@@ -7,6 +7,18 @@
   animation-timing-function: ease-in-out;
 }
 
+/* Keep the wordmark and its background opaque while the page crossfades. */
+.persistent-brand { view-transition-name: persistent-brand; }
+::view-transition-group(persistent-brand),
+::view-transition-old(persistent-brand),
+::view-transition-new(persistent-brand) { animation: none; }
+::view-transition-new(persistent-brand) { opacity: 0; }
+
+/* Position the fixed badge using the same inset and zoom as the live element. */
+:root[data-wide-phone-viewport]::view-transition-group(persistent-brand) {
+  transform: translate(var(--persistent-brand-inline), var(--persistent-brand-top));
+}
+
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(root),
   ::view-transition-new(root) { animation: none; }

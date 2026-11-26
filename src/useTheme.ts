@@ -1,5 +1,6 @@
 import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {flushSync} from 'react-dom';
+import colors from '../design-system/colors.json';
 
 const themeKey = 'agentik:theme';
 
@@ -12,7 +13,10 @@ function readTheme() {
 
 function applyDocumentTheme(dark: boolean) {
   const theme = dark ? 'dark' : 'light';
-  if (document.documentElement.dataset.theme !== theme) document.documentElement.dataset.theme = theme;
+  const root = document.documentElement;
+  if (root.dataset.theme !== theme) root.dataset.theme = theme;
+  const browserColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (browserColor && browserColor.content !== colors[theme].canvas) browserColor.content = colors[theme].canvas;
 }
 
 export function useTheme(initial: boolean | (() => boolean)) {

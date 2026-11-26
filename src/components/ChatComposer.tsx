@@ -17,6 +17,18 @@ const modelLabels: Record<ChatModel, [string, string]> = {
   deepseek: ['DeepSeek', 'DeepSeek'],
   alice: ['Алиса AI', 'Alice AI'],
 };
+const graphemeSegmenter = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter(undefined, {granularity:'grapheme'}) : undefined;
+const nativeFieldSizing = typeof CSS !== 'undefined' && CSS.supports('field-sizing', 'content');
+
+function typedCharacter(event: InputEvent, editor: HTMLTextAreaElement) {
+  const glyph = event.data;
+  if (event.inputType !== 'insertText' || event.isComposing || !glyph || glyph.length > 24 || !glyph.trim() ||
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  const length = graphemeSegmenter ? [...graphemeSegmenter.segment(glyph)].length : Array.from(glyph).length;
+  if (length !== 1) return;
+  const start = editor.selectionEnd - glyph.length;
+  if (start >= 0 && editor.value.startsWith(glyph, start)) return {start, glyph, value:editor.value};
+}
 
 export function MessageImages({images}: {images?: ChatImage[]}) {
   if (!images?.length) return null;
@@ -39,9 +51,8 @@ export function DocumentLabel({file}: {file: ChatDocument}) {
 function DictationLetters({text}: {text: string}) {
   // Bound the number of animated glyphs even for a full-length draft.
   if (text.length > 96) return <span className="composer__dictation-passage">{text}</span>;
-  const segmenter = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter(undefined, {granularity:'grapheme'}) : undefined;
   const words = text.split(/(\s+)/u);
-  const graphemes = words.map(word => segmenter ? Array.from(segmenter.segment(word), part => part.segment) : Array.from(word));
+  const graphemes = words.map(word => graphemeSegmenter ? Array.from(graphemeSegmenter.segment(word), part => part.segment) : Array.from(word));
   if (graphemes.flat().length > 32 || graphemes.some(word => word.length > 14)) {
     return <span className="composer__dictation-passage">{text}</span>;
   }
@@ -96,6 +107,8 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
   const submitting = useRef(false);
   const [sending, setSending] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [typing, setTyping] = useState<ReturnType<typeof typedCharacter>>();
+  const typed = typing?.value === draft ? typing : undefined;
   const locked = busy || sending;
   const [uploadedImage, setImage] = useState<ChatImage>();
   const image = uploadedImage ?? (attachment?.kind === 'image' ? attachment.image : undefined);
@@ -235,6 +248,17 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
     const timer = window.setTimeout(() => setTranscript(undefined), 1000);
     return () => {window.clearTimeout(timer); resize?.disconnect();};
   }, [field, inserted]);
+
+  useLayoutEffect(() => {
+    const editor = field.current;
+    const layer = preview.current;
+    if (!typed || !editor || !layer) return;
+    layer.style.inlineSize = editor.clientWidth + 'px';
+    layer.style.blockSize = editor.clientHeight + 'px';
+    layer.scrollTop = editor.scrollTop;
+    const timer = window.setTimeout(() => setTyping(undefined), 200);
+    return () => window.clearTimeout(timer);
+  }, [field, typed]);
 
   useEffect(() => {
     const editor = field.current;
@@ -383,10 +407,10 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
               </button>;
             }) : <p className="composer__mentions-empty">{t('Никого не нашли', 'No matches')}</p>}
           </div>}
-          <div className="composer__field">
+          <div className="composer__field" data-expanded={expanded} data-draft-content={nativeFieldSizing ? undefined : draft}>
             <textarea id={messageId} ref={field} className="composer__input" placeholder={placeholder}
               data-expanded={expanded} value={draft} maxLength={MAX_CHAT_MESSAGE_LENGTH} readOnly={locked} aria-invalid={required || undefined}
-              data-dictation-reveal={reveal || undefined} aria-describedby={hint ? messageId+'-hint' : undefined}
+              data-dictation-reveal={reveal || undefined} data-typing-reveal={!!typed || undefined} aria-describedby={hint ? messageId+'-hint' : undefined}
               aria-autocomplete={mentions?.length ? 'list' : undefined} aria-controls={mention ? mentionListId : undefined}
               aria-activedescendant={selectedMention >= 0 ? mentionListId + '-' + selectedMention : undefined}
               onChange={event => {
@@ -396,18 +420,21 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
                   setMentionIndex(0);
                 }
                 setTranscript(undefined);
+                setTyping(typedCharacter(event.nativeEvent as InputEvent, event.currentTarget));
                 onDraft(event.target.value);
                 if (required) {setRequired(false); setHint('');}
               }}
               onSelect={event => {
+                if (event.currentTarget.selectionStart !== event.currentTarget.selectionEnd) setTyping(undefined);
                 if (mentions) {
                   const editor = event.currentTarget;
                   if (chosenMention.current?.text === editor.value && chosenMention.current.caret === editor.selectionStart) return;
                   setMentionCaret(editor.selectionStart === editor.selectionEnd ? editor.selectionStart : null);
                 }
               }}
-              onBlur={() => setMentionCaret(null)}
-              onPointerDown={() => setTranscript(undefined)}
+              onBlur={() => {setMentionCaret(null);setTyping(undefined);}}
+              onPaste={() => setTyping(undefined)}
+              onPointerDown={() => {setTranscript(undefined);setTyping(undefined);}}
               onScroll={event => {if (preview.current) preview.current.scrollTop = event.currentTarget.scrollTop;}}
               onKeyDown={event => {
                 if (event.nativeEvent.isComposing || event.keyCode === 229) return;
@@ -444,6 +471,10 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
               {inserted.prefix}{inserted.plain
                 ? <span className="composer__dictation-passage" key={draft}>{inserted.text}</span>
                 : <DictationLetters key={draft} text={inserted.text}/>}
+            </div>}
+            {!reveal && typed && <div className="composer__typing-preview" aria-hidden="true" ref={preview}>
+              {draft.slice(0, typed.start)}<span className="composer__typing-letter" key={`${typed.start}:${typed.glyph}`}>{typed.glyph}</span>
+              {draft.slice(typed.start + typed.glyph.length)}
             </div>}
           </div>
           <Tooltip label={expandLabel}>

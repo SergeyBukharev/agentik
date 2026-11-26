@@ -207,6 +207,56 @@ test('opens the profile, assistant form and PRO from their direct links',async({
   }
 });
 
+test('grows with multiline drafts and keeps the caret and send button reachable at the height limit', async ({page}) => {
+  await page.setViewportSize({width:390, height:820});
+  await page.goto(workspace + '#/assistant/writer');
+  await enterCode(page);
+  const field = messageField(page);
+  const initial = (await field.boundingBox())!.height;
+  await field.fill('Первая строка\nВторая строка\nТретья строка\nЧетвёртая строка\nПятая строка');
+  await expect.poll(async () => (await field.boundingBox())!.height).toBeGreaterThan(initial);
+  await expect.poll(() => field.evaluate(el => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+  await field.fill(('Черновик с длинными строками и таймкодом.\n').repeat(140));
+  await field.evaluate(editor => {
+    const draft = editor as HTMLTextAreaElement;
+    draft.setSelectionRange(draft.value.length, draft.value.length);
+  });
+  await field.pressSequentially('.');
+  await expect.poll(() => field.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+  await expect(sendButton(page)).toBeInViewport({ratio:1});
+  await expectNoHorizontalScroll(page);
+  await field.fill('');
+  await expect.poll(async () => (await field.boundingBox())!.height).toBe(initial);
+});
+
+test('animates only manual character input and leaves pasted text static', async ({page}) => {
+  await page.goto(workspace + '#/assistant/writer');
+  await enterCode(page);
+  const field = messageField(page);
+  const editor = page.locator('.composer__field');
+  await editor.evaluate(node => {
+    const observer = new MutationObserver(() => {
+      const letter = node.querySelector('.composer__typing-letter');
+      if (letter) (node as HTMLElement).dataset.sampledTyping = letter.textContent ?? '';
+    });
+    observer.observe(node, {childList:true, subtree:true});
+  });
+  const preview = page.locator('.composer__typing-preview');
+  await field.press('a');
+  await expect(editor).toHaveAttribute('data-sampled-typing', 'a');
+  await expect(preview).toBeHidden();
+  await field.evaluate(el => {
+    el.setRangeText('!', el.selectionStart, el.selectionEnd, 'end');
+    el.dispatchEvent(new InputEvent('input', {inputType:'insertFromPaste', data:'!', bubbles:true}));
+  });
+  await expect(field).toHaveValue('a!');
+  await expect(preview).toBeHidden();
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await field.press('b');
+  await expect(field).toHaveValue('a!b');
+  await expect(preview).toBeHidden();
+});
+
 test('keeps the branded draft scrollbar at the right edge on desktop and mobile', async ({page}) => {
   await page.goto(workspace+'#/assistant/writer');
   await enterCode(page);

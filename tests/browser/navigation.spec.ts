@@ -42,6 +42,8 @@ test('localizes all built-in catalog cards and filters them in English', async (
   await favorites.click();
   await expect(cards).toHaveCount(1);
   await expect(cards.getByRole('link', {name:'Open: Career guide'})).toBeVisible();
+  await page.getByRole('button', {name:'Life', exact:true}).click();
+  await expect(page.getByRole('heading', {name:'No assistants found'})).toBeVisible();
 
   await page.goto(workspace + '#/characters');
   await expect(cards).toHaveCount(6);

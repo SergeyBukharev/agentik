@@ -26,3 +26,28 @@ test('keeps three role-specific suggestions in an existing chat and appends to t
   await page.getByRole('button', {name:'ENG', exact:true}).click();
   await expect(page.getByRole('group', {name:'Message suggestions'}).getByRole('button', {name:'Help me prepare a résumé for PDF'})).toBeVisible();
 });
+
+test('lets Leo invite the user to share a stream link without overwriting the draft', async ({page}) => {
+  await page.setViewportSize({width:390,height:820});
+  await page.goto(workspace + '#/assistant/leo');
+  await enterCode(page);
+  const notice = page.getByRole('article', {name:'Совместный просмотр с Лео'});
+  const addLink = notice.getByRole('button', {name:'Добавить ссылку на стрим'});
+  await expect(notice).toContainText(/YouTube и VK Видео/);
+  await expect(addLink).toBeInViewport({ratio:1});
+  const draft = messageField(page);
+  await draft.fill('Объясни, что происходит на 03:20.');
+  await addLink.click();
+  await expect(draft).toBeFocused();
+  await expect(draft).toHaveValue('Объясни, что происходит на 03:20.');
+  await expectNoHorizontalScroll(page);
+  await draft.fill('Объясни момент на 03:20 https://www.youtube.com/watch?v=aqz-KE-bpKQ');
+  await sendButton(page).click();
+  await expect(page).toHaveURL(/#\/chat\//);
+  await expect(page.locator('.message--user')).toContainText('https://www.youtube.com/watch?v=aqz-KE-bpKQ');
+  await page.reload();
+  await expect(notice).toHaveCount(1);
+  await page.setViewportSize({width:1120,height:820});
+  await page.getByRole('button', {name:'ENG',exact:true}).click();
+  await expect(page.getByRole('article', {name:'Watch together with Leo'})).toContainText(/YouTube and VK Video/);
+});

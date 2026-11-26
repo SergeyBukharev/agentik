@@ -1,8 +1,9 @@
-import {useEffect, useId, useRef, useState, type KeyboardEvent} from 'react';
+import {useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent} from 'react';
 import {Check, ChevronDown, Copy, Download} from 'lucide-react';
 import logoLightSvg from '/brand/agentik-wordmark-light.svg?raw';
 import logoDarkSvg from '/brand/agentik-wordmark-dark.svg?raw';
 import {useUi} from '../language';
+import {getPhoneZoom} from '../phone-viewport';
 
 const logoSources = {light:logoLightSvg, dark:logoDarkSvg};
 const pngScales = [1, 2] as const;
@@ -134,6 +135,31 @@ function PngDownload({source, filename}: {source:string; filename:string}) {
     return () => document.removeEventListener('pointerdown', closeOutside);
   }, [open]);
 
+  useLayoutEffect(() => {
+    if (!open) return;
+    const viewport = window.visualViewport;
+    function placeMenu() {
+      const button = trigger.current?.getBoundingClientRect();
+      const options = menu.current?.getBoundingClientRect();
+      if (!button || !options) return;
+      const top = viewport?.offsetTop ?? 0;
+      const above = button.top - top;
+      const below = top + (viewport?.height ?? window.innerHeight) - button.bottom;
+      setOpensAbove(below < options.height + 6 * getPhoneZoom() && above > below);
+    }
+    placeMenu();
+    viewport?.addEventListener('resize', placeMenu);
+    viewport?.addEventListener('scroll', placeMenu);
+    window.addEventListener('resize', placeMenu);
+    window.addEventListener('scroll', placeMenu);
+    return () => {
+      viewport?.removeEventListener('resize', placeMenu);
+      viewport?.removeEventListener('scroll', placeMenu);
+      window.removeEventListener('resize', placeMenu);
+      window.removeEventListener('scroll', placeMenu);
+    };
+  }, [open, files, failed]);
+
   useEffect(() => {
     if (!open || !menu.current) return;
     const items = menu.current.querySelectorAll('a');
@@ -141,9 +167,6 @@ function PngDownload({source, filename}: {source:string; filename:string}) {
   }, [open, files]);
 
   function openMenu(fromEnd = false) {
-    const bounds = trigger.current?.getBoundingClientRect();
-    const viewportBottom = window.visualViewport ? window.visualViewport.offsetTop + window.visualViewport.height : window.innerHeight;
-    setOpensAbove(Boolean(bounds && viewportBottom - bounds.bottom < 120 && bounds.top > 120));
     focusLast.current = fromEnd;
     setOpen(true);
     if (!generation || failed) {

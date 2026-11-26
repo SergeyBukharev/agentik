@@ -4,11 +4,12 @@ import {AgentikMark} from './AgentikMark';
 import {allowsMotion, ShaderLayer} from './ShaderEffects';
 import {prefetchScreen} from '../prefetch';
 import {useUi} from '../language';
+import './landing-hero-wave.css';
 
 const art = import.meta.env.BASE_URL + 'favicon.svg';
 const silhouette = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="14"/></svg>';
 const mediaMask = { '--media-mask': `url("data:image/svg+xml,${encodeURIComponent(silhouette)}")` } as CSSProperties;
-const waveSize = 240;
+const waveSize = 160;
 type Wave = {id: number; x: number; y: number; scale: number};
 
 export function LandingHero({signedIn = false}: {signedIn?: boolean}) {
@@ -23,15 +24,14 @@ export function LandingHero({signedIn = false}: {signedIn?: boolean}) {
   }, []);
 
   function ripple(event: MouseEvent<HTMLElement>) {
-    if (!event.detail || !allowsMotion() || !(event.target instanceof Element)
-      || event.target.closest('a, button, input, select, textarea, [role="button"]')) return;
+    if (!event.detail || event.defaultPrevented || !allowsMotion() || !(event.target instanceof Element)
+      || event.target.closest('a, button, input, select, textarea, label, summary, [contenteditable], [role="button"], [role="link"]')) return;
     const banner = event.currentTarget;
     const bounds = banner.getBoundingClientRect();
-    const x = event.clientX - bounds.left - banner.clientLeft;
-    const y = event.clientY - bounds.top - banner.clientTop;
+    const x = (event.clientX - bounds.left) * banner.offsetWidth / bounds.width - banner.clientLeft;
+    const y = (event.clientY - bounds.top) * banner.offsetHeight / bounds.height - banner.clientTop;
     const corner = Math.hypot(Math.max(x, banner.clientWidth - x), Math.max(y, banner.clientHeight - y));
-    // The leading ring sits at 73% of the gradient radius.
-    const wave = {id: ++waveId.current, x, y, scale: corner / (waveSize * .365)};
+    const wave = {id: ++waveId.current, x, y, scale: corner / (waveSize * .32)};
     setWaves(current => [...current.slice(-1), wave]);
   }
 

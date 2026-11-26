@@ -128,6 +128,7 @@ export function ChatBoard({profileId, boardKey, title, hasBudget, onUseText, onU
   const compareId = useId();
   const input = useRef<HTMLInputElement>(null);
   const uploadButton = useRef<HTMLButtonElement>(null);
+  const filePanel = useRef<HTMLElement>(null);
   const preview = useRef<HTMLElement>(null);
   const editRequest = useRef<symbol | undefined>(undefined);
   const [board, setBoard] = useState<BoardData | null>(null);
@@ -165,7 +166,11 @@ export function ChatBoard({profileId, boardKey, title, hasBudget, onUseText, onU
     setComparing(false);
     setConfirmRemove(false);
     setNotice('');
-    if (window.matchMedia?.('(max-width: 760px)').matches) preview.current?.scrollIntoView?.({block: 'nearest'});
+    const files = filePanel.current;
+    const panel = preview.current;
+    if (files && panel && panel.getBoundingClientRect().top >= files.getBoundingClientRect().bottom) {
+      panel.scrollIntoView?.({block: 'nearest'});
+    }
   }
 
   async function commit(documents: BoardDocument[]) {
@@ -290,7 +295,7 @@ export function ChatBoard({profileId, boardKey, title, hasBudget, onUseText, onU
         </div>
       )}
       {selected && <div className="chat-board__workspace">
-        <section className="chat-board__files" aria-label={t('Загруженные файлы', 'Uploaded files')}>
+        <section ref={filePanel} className="chat-board__files" aria-label={t('Загруженные файлы', 'Uploaded files')}>
           <p className="chat-board__files-head">{t(`${documents.length} из ${MAX_BOARD_FILES} файлов`, `${documents.length} of ${MAX_BOARD_FILES} files`)}</p>
           <ul className="chat-board__file-list">
             {documents.map(document => <li key={document.id}>

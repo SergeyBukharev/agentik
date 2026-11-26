@@ -29,7 +29,7 @@ import {LandingHero} from './components/LandingHero';
 import {readServiceNotices, ServiceNotices} from './components/ServiceNotices';
 import {PublicLanding} from './components/PublicLanding';
 import type {AccessSession} from './access-contract';
-import {accessPreviewHref} from './access-client';
+import {accessPreviewHref, demoAccessEnabled} from './access-client';
 import type {Point} from './motion/shader';
 import {useAccess, useOnline} from './useAccess';
 import {useRoute, type Route} from './routes';
@@ -387,7 +387,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
      <span aria-hidden="true">{wallet.remaining}</span>
    </button>}
  </div>;
- const proButton=session.offerPro && session.plan !== 'pro' ? <ProButton label={t('Купить PRO','Get PRO')} onClick={()=>setModal('pro')}/> : null;
+ const proButton=(session.offerPro || demoAccessEnabled) && session.plan !== 'pro' ? <ProButton label={t('Купить PRO','Get PRO')} onClick={()=>setModal('pro')}/> : null;
  const categoryLabel=(value:string)=>getCategoryLabel(value, language);
  const notices = useMemo(() => home ? readServiceNotices(import.meta.env.VITE_SERVICE_ANNOUNCEMENTS) : [], [home]);
  const hasRoom = useMemo(() => {
@@ -398,6 +398,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
  const showHero = home && !notices.length && !state.startedChat && !state.conversations.length && !hasRoom;
  const TitleTag=showHero?'h2':'h1';
  const title=home?t('Найдите своего помощника','Find your assistant'):page==='characters'?t('С кем поговорим?','Who shall we talk to?'):page==='favorites'?t('Всегда под рукой','Your favorites'):t('Помощники на каждый день','Everyday assistants');
+ const emptyFavorites = page === 'favorites' && state.favorites.length === 0 && !query;
  return <div className="app"><a className="skip-link" href="#main-content" onClick={e=>{e.preventDefault();document.getElementById('main-content')?.focus();}}>{t('К содержимому','Skip to content')}</a>
   <aside className="sidebar">
    <nav className="navigation" aria-label={t('Главная навигация','Main navigation')}>{nav.map(({href,label,Icon})=><a className={`navigation__link${active===href?' navigation__link--active':''}`} aria-current={active===href?'page':undefined} href={`#${href}`} key={href}><Icon size={20} strokeWidth={1.8}/><span>{label}</span>{href==='/assistants'&&<span className="navigation__count">{all.filter(item=>item.kind==='assistant').length}</span>}{href==='/favorites'&&state.favorites.length>0&&<span className="navigation__count">{state.favorites.length}</span>}</a>)}</nav>
@@ -465,7 +466,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
          </span>
        </a>
      </article>;
-   })}</div>:<Empty title={page==='favorites'&&!query?t('Сохраните тех, кто нравится','Save your favorites'):t('Пока никого не нашли','No assistants found')} text={page==='favorites'&&!query?t('Нажмите на звёздочку на карточке, и помощник останется здесь.','Star an assistant to keep it here.'):t('Попробуйте другое слово или выберите другую категорию.','Try a different search or category.')}/>}
+   })}</div>:<Empty title={emptyFavorites?t('Сохраните тех, кто нравится','Save your favorites'):t('Пока никого не нашли','No assistants found')} text={emptyFavorites?t('Нажмите на звёздочку на карточке, и помощник останется здесь.','Star an assistant to keep it here.'):t('Попробуйте другое слово или выберите другую категорию.','Try a different search or category.')}/>}
    {home&&!query&&category==='Все'&&<a className="catalog__more" href="#/assistants">{t('Все помощники','All assistants')}<ChevronDown size={18}/></a>}
    </section>
    {home&&<><section className="create-banner"><span className="create-banner__icon"><Plus size={28}/></span><div><h2 className="create-banner__title">{t('Ваши задачи. Ваш помощник.','An assistant for your work')}</h2><p>{t('Задайте ему роль и характер — остальное дело за вами.','Describe a role and the way you want it to work.')}</p></div><button className="button button--secondary" onClick={()=>{setValidation('');setModal('create');}}>{t('Создать своего','Create your own')}</button></section><section className="how-it-works"><div><span className="eyebrow">{t('ПРОЩЕ, ЧЕМ КАЖЕТСЯ','GETTING STARTED')}</span><h2 className="section-title section-title--secondary">{t('От вопроса к результату','From question to result')}</h2></div><div className="how-it-works__grid">{[[t('Найдите своего','Find an assistant'),t('Выберите помощника под задачу или создайте собственного.','Pick one for the job or create your own.')],[t('Расскажите о задаче','Describe your task'),t('Напишите своими словами или начните с готового примера.','Write a message or pick a starter prompt.')],[t('Вернитесь, когда нужно','Return when you need to'),t('Разговоры останутся в истории этого браузера.','Your browser keeps your chat history.')]].map(([t,d])=><div className="how-it-works__step" key={t}><span className="how-it-works__check"><Check size={18}/></span><h3>{t}</h3><p>{d}</p></div>)}</div></section></>}

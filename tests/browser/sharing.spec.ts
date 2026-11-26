@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test';
-import {codeB, expectNoHorizontalScroll, messageField, openCatalog, sendButton, workspace} from './helpers';
+import {codeB, enterCode, expectNoHorizontalScroll, messageField, openCatalog, sendButton, workspace} from './helpers';
 
 test('keeps the share action visible before the first message on a narrow screen', async ({page}) => {
   await page.setViewportSize({width:320, height:568});
@@ -73,6 +73,32 @@ test('shares an existing chat, exchanges an attachment and makes it private agai
   await guest.goto(invitation);
   await guest.getByRole('button',{name:'Присоединиться'}).click();
   await expect(guest.getByRole('alert')).toHaveText(/приглашение истекло/);
+});
+
+test.describe('group invitation in mobile landscape', () => {
+  test.use({viewport: {width: 568, height: 320}, screen: {width: 568, height: 320}, isMobile: true, hasTouch: true});
+
+  test('keeps the join button above the bottom navigation', async ({page, context}) => {
+    await page.goto(workspace + '#/rooms');
+    await enterCode(page);
+    await page.getByRole('button', {name: 'Создать комнату'}).click();
+    const create = page.getByRole('dialog', {name: 'Новая группа'});
+    await create.getByRole('textbox', {name: 'Название комнаты'}).fill('Общие планы');
+    await create.getByRole('button', {name: 'Создать комнату'}).click();
+    await page.getByRole('button', {name: 'Поделиться группой'}).click();
+    const invite = await page.getByRole('textbox', {name: 'Приглашение'}).inputValue();
+
+    const invitation = await context.newPage();
+    await invitation.goto(invite);
+    const join = invitation.getByRole('button', {name: 'Присоединиться'});
+    await expect(join).toBeVisible();
+    const joinBounds = (await join.boundingBox())!;
+    const navigation = invitation.getByRole('navigation', {name: 'Нижняя навигация'});
+    const navigationBounds = (await navigation.boundingBox())!;
+    expect(joinBounds.y + joinBounds.height).toBeLessThanOrEqual(navigationBounds.y);
+    await join.tap();
+    await expect(invitation.getByRole('heading', {name: 'Общие планы'})).toBeVisible();
+  });
 });
 
 test('adds a custom bot and a template, mentions the active bot and receives its reply', async ({page, browserName}) => {

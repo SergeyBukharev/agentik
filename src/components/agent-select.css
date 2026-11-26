@@ -38,6 +38,11 @@
   scale: .96;
 }
 
+.agent-select__trigger > [data-select-value] {
+  min-width: 0;
+  display: flex;
+}
+
 .agent-select__selection {
   display: inline-flex;
   align-items: center;
@@ -62,11 +67,14 @@
 }
 
 .agent-select__content {
+  --select-anchor-width: calc(var(--radix-select-trigger-width) / var(--phone-zoom, 1));
+  --select-available-width: calc(var(--radix-select-content-available-width) / var(--phone-zoom, 1));
+  --select-available-height: calc(var(--radix-select-content-available-height) / var(--phone-zoom, 1));
   position: relative;
   z-index: 80;
-  min-width: min(max(10.25rem, var(--radix-select-trigger-width)), var(--radix-select-content-available-width));
-  max-width: var(--radix-select-content-available-width);
-  max-height: var(--radix-select-content-available-height);
+  min-width: min(max(10.25rem, var(--select-anchor-width)), var(--select-available-width));
+  max-width: var(--select-available-width);
+  max-height: var(--select-available-height);
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 13px;
@@ -106,6 +114,10 @@
 .agent-select__option[data-highlighted] {
   outline: none;
   background: var(--lime-soft);
+}
+
+.agent-select__option .agent-select__selection {
+  overflow-wrap: anywhere;
 }
 
 .agent-select__indicator {

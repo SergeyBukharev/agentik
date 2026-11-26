@@ -8,3 +8,12 @@
 }
 
 :root[data-wide-phone-viewport] { zoom: var(--phone-zoom); }
+
+/* Radix places these layers using viewport coordinates measured after the page zoom. */
+:root[data-wide-phone-viewport] [data-radix-popper-content-wrapper] {
+  zoom: calc(1 / var(--phone-zoom));
+}
+
+:root[data-wide-phone-viewport] [data-radix-popper-content-wrapper] > * {
+  zoom: var(--phone-zoom);
+}

@@ -28,7 +28,7 @@ export function AgentSelect<Value extends string>({id, label, value, options, on
     }}>
       <Select.Trigger id={id} className="agent-select__trigger" data-agentik-select="" data-full-width={fullWidth || undefined}
         aria-label={label}>
-        <Select.Value>
+        <Select.Value data-select-value="">
           <span className="agent-select__selection">
             {selected?.icon}<span className="agent-select__label">{selected?.label}</span>
           </span>

@@ -119,6 +119,7 @@ src/components/FavoriteButton.tsx
 src/components/kit-pages.css
 src/components/KitPages.tsx
 src/components/LandingHero.tsx
+src/components/landing-hero-wave.css
 src/components/LandingShowcase.tsx
 src/components/Modal.tsx
 src/components/ModelIcon.tsx

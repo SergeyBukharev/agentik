@@ -1,6 +1,38 @@
 import {devices, expect, test} from '@playwright/test';
 import {codeB, codeField, enterCode, expectNoHorizontalScroll, messageField, sendButton, workspace} from './helpers';
 
+test('keeps the selected colors on phones when Chromium automatically darkens pages', async ({browser, browserName, baseURL}) => {
+  test.skip(browserName !== 'chromium', 'Automatic darkening is emulated through Chromium DevTools');
+  const context = await browser.newContext({...devices['Pixel 7'], baseURL, colorScheme:'dark', reducedMotion:'reduce'});
+  try {
+    const page = await context.newPage();
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Emulation.setAutoDarkModeOverride', {enabled:true});
+    await page.goto(workspace);
+    await page.getByRole('button', {name:'Светлая тема', exact:true}).tap();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    const sample = {clip:{x:0, y:82, width:8, height:8}, scale:'css'} as const;
+    const forced = await page.screenshot(sample);
+    await cdp.send('Emulation.setAutoDarkModeOverride', {enabled:false});
+    expect((await page.screenshot(sample)).equals(forced)).toBe(true);
+
+    const themeColor = page.locator('meta[name="theme-color"]');
+    await expect(themeColor).toHaveAttribute('content', '#fcfdfb');
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await page.getByRole('button', {name:'Тёмная тема', exact:true}).tap();
+    await expect(themeColor).toHaveAttribute('content', '#191e17');
+    await page.getByRole('link', {name:'Войти', exact:true}).tap();
+    await enterCode(page);
+    await expect(page.getByRole('heading', {name:'Ваши разговоры'})).toBeVisible();
+    await page.getByRole('button', {name:'Светлая тема', exact:true}).tap();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect(themeColor).toHaveAttribute('content', '#fcfdfb');
+  } finally {
+    await context.close();
+  }
+});
+
 test('keeps the phone layout readable in a wide virtual viewport', async ({browser, browserName, baseURL}) => {
   const device = devices[browserName === 'webkit' ? 'iPhone 13' : 'Pixel 7'];
   const context = await browser.newContext({...device, baseURL, serviceWorkers:'block', reducedMotion:'reduce'});
@@ -40,6 +72,17 @@ test('keeps the phone layout readable in a wide virtual viewport', async ({brows
     const send = (await sendButton(page).boundingBox())!;
     expect(send.y + send.height).toBeLessThanOrEqual((await navigation.boundingBox())!.y);
     await expectNoHorizontalScroll(page);
+
+    const expand = page.getByRole('button', {name:'Увеличить поле сообщения'});
+    await expand.focus();
+    await expect(page.getByRole('tooltip')).toBeInViewport({ratio:1});
+    await expand.blur();
+    const model = page.getByRole('combobox', {name:'Модель'});
+    await model.click();
+    const models = page.getByRole('listbox', {name:'Модель'});
+    await expect(models).toBeInViewport({ratio:1});
+    await models.getByRole('option', {name:'Авто', exact:true}).click();
+    await expect(models).toBeHidden();
 
     const editor = messageField(page);
     await editor.focus();

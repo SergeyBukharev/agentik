@@ -510,7 +510,8 @@
   .chat__back { min-width: 44px; margin-inline-start: -5px; }
 }
 
-@media (min-width: 500px) and (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) and (pointer: coarse) {
+@media (min-width: 500px) and (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) and (pointer: coarse),
+  (min-width: 500px) and (max-device-width: 1200px) and (max-device-height: 1200px) and ((max-device-width: 500px) or (max-device-height: 500px)) and (orientation: landscape) and (any-pointer: coarse) {
   :root { --workspace-mobile-nav-height: 56px; }
   .main { padding-block-start: 8px; }
   .mobile-intro { padding-block: 0 8px; }
@@ -545,6 +546,17 @@
   .code-gate__help { grid-area: help; }
   .code-gate__submit { grid-area: submit; }
   .code-gate .code-gate__agreement { margin-block-start: 8px; }
+
+  .state-page > .page-state {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    align-items: center;
+    justify-items: start;
+    margin-block: 12px;
+    padding: 16px 24px;
+    text-align: start;
+  }
+  .state-page .page-state__art { width: min(100%, 160px); }
+  .state-page .page-state__actions { justify-content: flex-start; }
 }
 
 @media (max-width: 360px) {

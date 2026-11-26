@@ -144,7 +144,7 @@ export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, onCr
 
   if (joinToken) return (
     <section className="rooms">
-      <div className="empty-state">
+      <div className="empty-state rooms__invitation">
         <Scene kind="together"/>
         <h1 className="section-title">{t('Приглашение в группу', 'Group invitation')}</h1>
         <p className="empty-state__text">{t(
