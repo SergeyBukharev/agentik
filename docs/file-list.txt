@@ -170,6 +170,7 @@ src/main.tsx
 src/message-balance.ts
 src/motion/shader.ts
 src/persistent-brand.css
+src/phone-viewport.ts
 src/prefetch.ts
 src/profile-state.test.tsx
 src/remote.ts
@@ -199,6 +200,7 @@ src/usePinnedChatThread.ts
 src/useProfileState.ts
 src/useTheme.test.tsx
 src/useTheme.ts
+src/viewport.css
 src/visual-polish.css
 supabase/migrations/001_rooms.sql
 supabase/tests/rooms.sql

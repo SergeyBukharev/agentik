@@ -5,6 +5,7 @@ import type {ChatDraftAttachment} from '../chat-drafts';
 import {CHAT_MODELS, prepareChatImage, type ChatImage, type ChatModel} from '../chat-media';
 import {useUi, type Language} from '../language';
 import {normalizeRoomMentionHandle, type RoomMention} from '../local-rooms';
+import {getPhoneZoom} from '../phone-viewport';
 import {useDictation, type TextSelection} from '../useDictation';
 import {AgentSelect} from './AgentSelect';
 import {Tooltip} from './Tooltip';
@@ -184,9 +185,10 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
     let pendingLayout = 0;
     const place = () => {
       pendingLayout = 0;
-      const viewTop = viewport?.offsetTop ?? 0;
-      const height = viewport?.height ?? window.innerHeight;
-      const editorTop = editor.getBoundingClientRect().top;
+      const zoom = getPhoneZoom();
+      const viewTop = (viewport?.offsetTop ?? 0) / zoom;
+      const height = (viewport?.height ?? window.innerHeight) / zoom;
+      const editorTop = editor.getBoundingClientRect().top / zoom;
       const spaceAbove = editorTop - viewTop - 18;
       const overlap = spaceAbove < 56;
       menu.toggleAttribute('data-overlap',overlap);
@@ -247,11 +249,12 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
         focusWidth = window.innerWidth;
         focusHeight = window.innerHeight;
       }
-      const obscured = window.innerHeight - viewport.height;
+      const zoom = getPhoneZoom();
+      const obscured = (window.innerHeight - viewport.height) / zoom;
       // Some browsers shrink only the visual viewport when the keyboard opens.
-      const keyboard = Math.abs(viewport.scale - 1) < .02 &&
-        Math.max(obscured, focusHeight - window.innerHeight) > 100;
-      const inset = keyboard ? Math.max(0, Math.round(obscured - viewport.offsetTop)) : -1;
+      const keyboard = Math.abs(viewport.scale * zoom - 1) < .02 &&
+        Math.max(obscured, (focusHeight - window.innerHeight) / zoom) > 100;
+      const inset = keyboard ? Math.max(0, Math.round(obscured - viewport.offsetTop / zoom)) : -1;
       if (!keyboard && document.activeElement !== editor) {
         stop();
         return;

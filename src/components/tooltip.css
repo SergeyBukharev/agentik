@@ -1,6 +1,6 @@
 .ui-tooltip {
   z-index: 100;
-  max-inline-size: min(220px, 100vw - 24px);
+  max-inline-size: min(220px, var(--viewport-width) - 24px);
   padding: 7px 10px;
   border-radius: 8px;
   background: var(--ink);

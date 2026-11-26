@@ -52,7 +52,7 @@
   inset-inline-start: var(--persistent-brand-inline);
   display: grid;
   min-inline-size: 176px;
-  max-inline-size: calc(100vw - 32px);
+  max-inline-size: calc(var(--viewport-width) - 32px);
   padding: 5px;
   border: 1px solid var(--line);
   border-radius: 13px;
@@ -107,7 +107,7 @@
 .state-page { padding-block-start: calc(var(--persistent-brand-top) + var(--persistent-brand-height)); }
 
 @media (min-width: 768px) {
-  main:is(.agreement, .kit-shell) {
+  :root:not([data-wide-phone-viewport]) main:is(.agreement, .kit-shell) {
     --brand-rail: calc(var(--persistent-brand-inline) + 164px);
     width: min(var(--content-page-width), 100% - var(--brand-rail) - max(18px, env(safe-area-inset-right)));
     margin-inline: max(var(--brand-rail), (100% - var(--content-page-width)) / 2) auto;
@@ -115,7 +115,7 @@
   }
 }
 
-@media (max-width: 820px), (max-width: 1024px) and (orientation: landscape) and (pointer: coarse) {
+@media (max-width: 820px), (max-width: 1024px) and (any-pointer: coarse), (any-pointer: coarse) and ((max-device-width: 600px) or ((max-device-width: 1200px) and (max-device-height: 600px))) {
   :root {
     --persistent-brand-gutter: 13px;
     --persistent-brand-top: max(10px, env(safe-area-inset-top));

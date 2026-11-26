@@ -6,7 +6,7 @@
 .app__body:has(> .main > .chat--docked) {
   display: flex;
   flex-direction: column;
-  block-size: calc(100dvh - var(--composer-keyboard-inset, var(--workspace-chat-bottom)));
+  block-size: calc(var(--viewport-height) - var(--composer-keyboard-inset, var(--workspace-chat-bottom)));
 }
 
 .app__body:has(> .main > .chat--docked) > .topbar { flex: none; }
@@ -92,7 +92,7 @@
   z-index: 6;
   inset-inline: 0;
   inset-block-end: calc(100% + 12px);
-  max-block-size: min(260px, var(--mention-space, 35dvh));
+  max-block-size: min(260px, var(--mention-space, calc(var(--viewport-height) * 0.35)));
   padding: 4px;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -168,7 +168,7 @@
 }
 @keyframes dictation-fade { from { opacity: 0; } to { opacity: 1; } }
 .composer__input[data-expanded='true'] {
-  height: min(300px, 42dvh);
+  height: min(300px, calc(var(--viewport-height) * 0.42));
   max-height: none;
 }
 .composer__expand {
@@ -319,7 +319,7 @@
   font-size: 16px;
 }
 .code-gate__email:focus { border-color: #d1f28b; background-color: #252e24; }
-@media (max-width: 820px), (max-width: 1024px) and (orientation: landscape) and (pointer: coarse) {
+@media (max-width: 820px), (max-width: 1024px) and (any-pointer: coarse), (any-pointer: coarse) and ((max-device-width: 600px) or ((max-device-width: 1200px) and (max-device-height: 600px))) {
   :root { --workspace-chat-bottom: calc(var(--workspace-mobile-nav-height, 72px) + var(--workspace-chat-safe-bottom) + 4px); }
   .composer-stack {
     position: sticky;
@@ -339,7 +339,7 @@
   :root[data-composer-keyboard] .chat__thread > .prompt-list--conversation > button { flex: none; }
   .composer-stack .composer { position: relative; bottom: auto; }
   .composer__editor :is(.composer__input, .composer__dictation-preview) { font-size: 16px; }
-  .composer__input[data-expanded='true'] { height: min(210px, 38dvh); }
+  .composer__input[data-expanded='true'] { height: min(210px, calc(var(--viewport-height) * 0.38)); }
   .chat__header { flex-wrap: wrap; }
   .chat__header-actions { margin-inline-start: auto; }
   .mobile__preferences { display: flex; gap: 6px; align-items: center; margin-block: 14px 0; justify-content: space-between; flex-wrap: wrap; }
@@ -365,7 +365,7 @@
   .chat--docked .composer--tools > :is(.composer__attachment, .composer__document) { grid-column: 1 / -1; }
   .chat--docked .composer__input[data-expanded='false'] { block-size: 50px; }
   .chat--docked .composer__input[data-expanded='true'] {
-    block-size: clamp(58px, calc((100dvh - var(--composer-keyboard-inset, 0px)) * .25), 140px);
+    block-size: clamp(58px, calc((var(--viewport-height) - var(--composer-keyboard-inset, 0px)) * .25), 140px);
   }
   .chat--docked .composer__toolbar { flex-wrap: nowrap; }
   .chat--docked .chat__disclaimer { margin-block-start: 6px; }

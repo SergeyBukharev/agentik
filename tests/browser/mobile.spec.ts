@@ -1,6 +1,63 @@
 import {devices, expect, test} from '@playwright/test';
 import {codeB, codeField, enterCode, expectNoHorizontalScroll, messageField, sendButton, workspace} from './helpers';
 
+test('keeps the phone layout readable in a wide virtual viewport', async ({browser, browserName, baseURL}) => {
+  const device = devices[browserName === 'webkit' ? 'iPhone 13' : 'Pixel 7'];
+  const context = await browser.newContext({...device, baseURL, serviceWorkers:'block', reducedMotion:'reduce'});
+  try {
+    await context.route('**/agentik/', async route => {
+      // Model a browser that ignores the site's viewport meta tag in desktop mode.
+      const response = await route.fetch();
+      const body = (await response.text()).replace(/<meta name="viewport"[^>]*>/u, '');
+      await route.fulfill({response, body});
+    });
+    const page = await context.newPage();
+    await page.goto(workspace);
+    const scale = await page.evaluate(() => window.visualViewport!.scale);
+    expect(await page.evaluate(() => innerWidth)).toBeGreaterThan(820);
+    expect(scale).toBeLessThan(.75);
+
+    await page.getByRole('link', {name:'Войти по коду'}).click();
+    await expect(codeField(page)).toBeInViewport({ratio:1});
+    await enterCode(page);
+    await expect(page.getByRole('heading', {name:'Ваши разговоры'})).toBeVisible();
+    await page.goto(workspace + '#/');
+
+    const navigation = page.getByRole('navigation', {name:'Нижняя навигация'});
+    await expect(page.getByRole('navigation', {name:'Главная навигация'})).toBeHidden();
+    await expect(navigation).toBeInViewport();
+    const navItem = navigation.getByRole('link', {name:'Каталог'});
+    expect((await navItem.boundingBox())!.height * scale).toBeGreaterThanOrEqual(44);
+    await navItem.click();
+    const search = page.getByRole('searchbox');
+    await expect(search).toBeInViewport();
+    expect((await page.locator('label.search').boundingBox())!.height * scale).toBeGreaterThanOrEqual(44);
+    await expectNoHorizontalScroll(page);
+
+    await page.goto(workspace + '#/assistant/writer');
+    await expect(messageField(page)).toBeInViewport();
+    await expect(sendButton(page)).toBeInViewport();
+    const send = (await sendButton(page).boundingBox())!;
+    expect(send.y + send.height).toBeLessThanOrEqual((await navigation.boundingBox())!.y);
+    await expectNoHorizontalScroll(page);
+
+    const editor = messageField(page);
+    await editor.focus();
+    const keyboardTop = await page.evaluate(() => {
+      const viewport = window.visualViewport!;
+      const height = viewport.height - 260 / viewport.scale;
+      Object.defineProperty(viewport, 'height', {value:height, configurable:true});
+      viewport.dispatchEvent(new Event('resize'));
+      return height;
+    });
+    await expect(navigation).toBeHidden();
+    const keyboardSend = (await sendButton(page).boundingBox())!;
+    expect(keyboardSend.y + keyboardSend.height).toBeLessThanOrEqual(keyboardTop + 1);
+  } finally {
+    await context.close();
+  }
+});
+
 test('keeps touch navigation and chat controls reachable as the viewport changes', async ({browser, browserName, baseURL}) => {
   const device = browserName === 'webkit' ? 'iPhone 13 landscape' : 'Pixel 7 landscape';
   const compactViewports = [
@@ -229,13 +286,15 @@ test('keeps the landing sign-in fixed opposite the logo on narrow and wide scree
     await page.evaluate(() => window.scrollTo(0, 0));
     const brand = (await logo.boundingBox())!;
     const button = (await login.boundingBox())!;
-    const viewport = await page.evaluate(() => document.documentElement.clientWidth);
+    const viewport = await page.evaluate(() => window.visualViewport?.width ?? innerWidth);
     expect(Math.abs(viewport - button.x - button.width - brand.x)).toBeLessThanOrEqual(1);
     expect(Math.abs(button.y - brand.y)).toBeLessThanOrEqual(1);
+    const fixedTop = () => login.evaluate(el => el.getBoundingClientRect().top + (window.visualViewport?.offsetTop ?? 0));
+    const top = await fixedTop();
 
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(80);
-    await expect.poll(async () => (await login.boundingBox())?.y).toBe(button.y);
+    await expect.poll(fixedTop).toBeCloseTo(top, 0);
     await expect(login).toBeInViewport();
   }
   await login.click();

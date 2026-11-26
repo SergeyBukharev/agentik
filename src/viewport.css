@@ -1,0 +1,10 @@
+:root {
+  --viewport-width: calc(100vw / var(--phone-zoom, 1));
+  --viewport-height: calc(100vh / var(--phone-zoom, 1));
+}
+
+@supports (height: 100dvh) {
+  :root { --viewport-height: calc(100dvh / var(--phone-zoom, 1)); }
+}
+
+:root[data-wide-phone-viewport] { zoom: var(--phone-zoom); }

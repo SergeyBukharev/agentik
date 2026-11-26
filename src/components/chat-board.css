@@ -191,14 +191,14 @@
 .chat-board__image {
   display: block;
   max-width: 100%;
-  max-height: min(52dvh, 500px);
+  max-height: min(calc(var(--viewport-height) * 0.52), 500px);
   margin-inline: auto;
   border-radius: 6px;
   object-fit: contain;
 }
 
 .chat-board__text {
-  max-height: min(42dvh, 360px);
+  max-height: min(calc(var(--viewport-height) * 0.42), 360px);
   min-width: 0;
   margin: 0;
   overflow: auto;
@@ -257,7 +257,7 @@
   background: var(--surface);
 }
 
-@media (max-width: 760px) {
+@media (max-width: 760px), (max-device-width: 600px) and (any-pointer: coarse) {
   .chat-board__workspace, .chat-board__index {
     grid-template-columns: minmax(0, 1fr);
   }

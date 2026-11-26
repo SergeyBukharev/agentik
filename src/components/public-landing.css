@@ -78,7 +78,7 @@
   min-block-size: 44px;
 }
 
-@media (max-width: 460px) {
+@media (max-width: 460px), (max-device-width: 460px) and (any-pointer: coarse) and (orientation: portrait) {
   .public-landing__header {
     min-block-size: calc(var(--persistent-brand-height) + 12px + 50px);
   }
