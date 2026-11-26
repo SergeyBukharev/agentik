@@ -203,7 +203,7 @@
   opacity: 1;
 }
 
-@media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) and (pointer: coarse) {
+@media (max-width: 820px), (max-width: 1024px) and (orientation: landscape) and (pointer: coarse) {
   :root:not([data-theme='dark']) .category-list__item--active .category-icon {
     color: var(--category-tint);
   }

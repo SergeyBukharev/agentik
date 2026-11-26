@@ -133,7 +133,7 @@ test('opens local rooms across tabs and reports an invalid invitation', async ({
   await page.getByRole('button', {name: 'Создать комнату'}).click();
   await page.getByRole('textbox', {name: 'Название комнаты'}).fill('Общий черновик');
   await page.getByRole('dialog').getByRole('button', {name: 'Создать комнату'}).click();
-  await page.getByRole('button', {name: 'Пригласить участника'}).click();
+  await page.getByRole('button', {name: 'Поделиться группой'}).click();
   const invitation = await page.getByRole('textbox', {name: 'Приглашение'}).inputValue();
   await page.keyboard.press('Escape');
   const second = await context.newPage();

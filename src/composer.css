@@ -247,7 +247,7 @@
   font-size: 16px;
 }
 .code-gate__email:focus { border-color: #d1f28b; background-color: #252e24; }
-@media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) and (pointer: coarse) {
+@media (max-width: 820px), (max-width: 1024px) and (orientation: landscape) and (pointer: coarse) {
   .composer-stack {
     position: sticky;
     inset-block-end: var(--composer-keyboard-inset, calc(var(--workspace-mobile-nav-height, 72px) + env(safe-area-inset-bottom)));

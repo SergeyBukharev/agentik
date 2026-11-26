@@ -442,7 +442,7 @@
 .notice--error { animation: state-in .22s ease-out both; }
 .chat__error .button { margin: 0; min-block-size: 44px; }
 .chat__header > div, .chat__heading, .chat-welcome, .agent-card, .section-heading > div { min-inline-size: 0; }
-.chat__title, .chat__subtitle, .chat-welcome__text, .message__author, .history-item__text, .agent-card__title,
+.section-title, .chat__title, .chat__subtitle, .chat-welcome__text, .message__author, .history-item__text, .agent-card__title,
 .agent-card__description, .agent-card__footer, .profile-list__item, .mobile-intro > p, .empty-state__text,
 .notice, .prompt-list__item { overflow-wrap: anywhere; }
 .profile-button__avatar { flex-shrink: 0; }
@@ -479,7 +479,8 @@
   .landing-showcase .agent-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-@media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) and (pointer: coarse) {
+/* A populated chat needs room for its title and actions alongside the sidebar. */
+@media (max-width: 820px), (max-width: 1024px) and (orientation: landscape) and (pointer: coarse) {
   :root { --workspace-mobile-nav-height: 72px; }
   .public-landing .hero--intro { display: grid; margin-block-end: 24px; }
   .main {
@@ -496,6 +497,7 @@
   .topbar__profile { min-width: 44px; min-height: 44px; }
   .category-list { flex-wrap: wrap; overflow: visible; gap: 5px; }
   .category-list__item { min-height: 44px; }
+  .search { width: 100%; }
   .search__input { font-size: 16px; }
   .bottom-nav {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 48px minmax(0, 1fr) minmax(0, 1fr);

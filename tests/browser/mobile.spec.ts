@@ -1,8 +1,17 @@
 import {devices, expect, test} from '@playwright/test';
 import {codeField, enterCode, expectNoHorizontalScroll, messageField, sendButton, workspace} from './helpers';
 
-test('keeps phone navigation, search and chat controls reachable in landscape', async ({browser, browserName, baseURL}) => {
+test('keeps touch navigation and chat controls reachable as the viewport changes', async ({browser, browserName, baseURL}) => {
   const device = browserName === 'webkit' ? 'iPhone 13 landscape' : 'Pixel 7 landscape';
+  const compactViewports = [
+    devices[device].viewport,
+    {width:568, height:320},
+    {width:844, height:390},
+    {width:844, height:530},
+    {width:915, height:600},
+    {width:641, height:900},
+    {width:768, height:1024},
+  ];
   const context = await browser.newContext({...devices[device], baseURL, reducedMotion:'reduce'});
   try {
     const page = await context.newPage();
@@ -19,17 +28,26 @@ test('keeps phone navigation, search and chat controls reachable in landscape', 
     await expect(page.getByRole('navigation', {name:'Главная навигация'})).toBeHidden();
     await navigation.getByRole('link', {name:'Каталог'}).click();
     const search = page.getByRole('searchbox');
-    for (const viewport of [devices[device].viewport, {width:568, height:320}]) {
+    for (const viewport of compactViewports) {
       await page.setViewportSize(viewport);
+      await expect(navigation).toBeInViewport({ratio:1});
       await expect(search).toBeInViewport({ratio:1});
       const searchBox = (await search.boundingBox())!;
+      expect(searchBox.width).toBeGreaterThan(viewport.width * 0.75);
       expect(searchBox.y + searchBox.height).toBeLessThanOrEqual((await navigation.boundingBox())!.y);
       await expectNoHorizontalScroll(page);
     }
 
     await page.goto(workspace + '#/assistant/writer');
-    for (const viewport of [{width:568, height:320}, devices[device].viewport]) {
+    await messageField(page).fill('Сообщение для проверки мобильной вёрстки');
+    await sendButton(page).click();
+    await expect(page.getByText(/Это демонстрационный ответ/)).toBeVisible();
+    await messageField(page).blur();
+    for (const viewport of compactViewports) {
       await page.setViewportSize(viewport);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await expect(navigation).toBeInViewport({ratio:1});
+      await expect(page.getByRole('navigation', {name:'Главная навигация'})).toBeHidden();
       await expect(messageField(page)).toBeInViewport({ratio:1});
       await expect(sendButton(page)).toBeInViewport({ratio:1});
       await expect(page.getByRole('link', {name:'Назад к чатам'})).toBeInViewport({ratio:1});
@@ -82,9 +100,15 @@ test('keeps the chat field and send button above a mobile keyboard', async ({pag
 });
 
 test('keeps board files available for editing after reload on mobile', async ({page}) => {
+  const name = 'СверхдлинноеНазвание'.repeat(3);
   await page.setViewportSize({width:320,height:740});
-  await page.goto(workspace + '#/board/writer');
+  await page.goto(workspace + '#/login');
   await enterCode(page);
+  await page.getByRole('navigation', {name:'Нижняя навигация'}).getByRole('button', {name:'Создать помощника'}).click();
+  await page.getByRole('textbox', {name:'Название', exact:true}).fill(name);
+  await page.getByRole('textbox', {name:'Что он умеет'}).fill('Помогает разбирать заметки.');
+  await page.getByRole('button', {name:'Сохранить помощника'}).click();
+  await page.getByRole('link', {name:'Доска', exact:true}).click();
   await expect(page.getByRole('button',{name:'Добавить файлы'})).toBeEnabled();
   await page.locator('.chat-board input[type=file]').setInputFiles({
     name:'mobile-notes.txt', mimeType:'text/plain', buffer:Buffer.from('Абзац с заметками.'),
@@ -92,6 +116,8 @@ test('keeps board files available for editing after reload on mobile', async ({p
   const edit = page.getByRole('button',{name:'Редактировать в чате'});
   await expect(edit).toBeVisible({timeout:4000});
   await page.reload();
+  await expect(page.getByRole('heading', {name, exact:true})).toBeInViewport({ratio:1});
+  await expectNoHorizontalScroll(page);
   await expect(page.getByText('Абзац с заметками.',{exact:true})).toBeVisible();
   await edit.click();
   await expect(page.locator('.composer__document')).toContainText('mobile-notes.txt');
