@@ -53,6 +53,24 @@ test('keeps the phone layout readable in a wide virtual viewport', async ({brows
     await expect(navigation).toBeHidden();
     const keyboardSend = (await sendButton(page).boundingBox())!;
     expect(keyboardSend.y + keyboardSend.height).toBeLessThanOrEqual(keyboardTop + 1);
+
+    await page.goto(workspace + '#/characters');
+    await navigation.getByRole('button', {name:'Профиль'}).click();
+    const profile = page.getByRole('dialog');
+    await profile.getByRole('button', {name:'ENG', exact:true}).click();
+    await profile.getByRole('button', {name:'Close', exact:true}).click();
+
+    for (const [route, title] of [['characters', 'Who shall we talk to?'], ['favorites', 'Your favorites']]) {
+      await page.goto(workspace + '#/' + route);
+      const heading = page.getByRole('heading', {name:title, exact:true});
+      const searchLabel = page.locator('label.search');
+      await expect(heading).toBeVisible();
+      const [headingBox, searchBox] = await Promise.all([heading.boundingBox(), searchLabel.boundingBox()]);
+      expect(headingBox!.width).toBeGreaterThanOrEqual(searchBox!.width - 1);
+      expect(headingBox!.y + headingBox!.height).toBeLessThan(searchBox!.y);
+      await expect(searchLabel).toBeInViewport();
+      await expectNoHorizontalScroll(page);
+    }
   } finally {
     await context.close();
   }
