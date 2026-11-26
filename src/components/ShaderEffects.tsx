@@ -6,11 +6,12 @@ export function allowsMotion() {
   return typeof window.matchMedia !== 'function' || !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-export function ShaderLayer({effect, duration, origin, text}: {
+export function ShaderLayer({effect, duration, origin, text, image}: {
   effect: ShaderEffect;
   duration: number;
   origin?: Point;
   text?: RefObject<HTMLElement | null>;
+  image?: RefObject<HTMLImageElement | null>;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -22,7 +23,7 @@ export function ShaderLayer({effect, duration, origin, text}: {
 
     function start(target: HTMLCanvasElement) {
       void import('../motion/shader').then(({playShader}) => {
-        if (active && allowsMotion()) cleanup = playShader(target, {effect, duration, origin, text: text?.current});
+        if (active && allowsMotion()) cleanup = playShader(target, {effect, duration, origin, text: text?.current, image: image?.current});
       }).catch(() => { /* The DOM and CSS fallbacks remain visible. */ });
     }
 
@@ -36,9 +37,9 @@ export function ShaderLayer({effect, duration, origin, text}: {
     } else start(node);
 
     return () => { active = false; observer?.disconnect(); cleanup?.(); };
-  }, [effect, duration, origin, text]);
+  }, [effect, duration, origin, text, image]);
 
-  return <canvas className={`shader-layer shader-layer--${effect}`} data-effect={effect} ref={canvas} aria-hidden="true"/>;
+  return <canvas className={`shader-layer shader-layer--${effect}`} data-effect={effect} width={1} height={1} ref={canvas} aria-hidden="true"/>;
 }
 
 const inMemory = new Set<string>();

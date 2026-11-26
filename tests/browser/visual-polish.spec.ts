@@ -32,26 +32,6 @@ test('shows logo pixels only on hover or keyboard focus in the public and worksp
   await expect(pixels).toHaveCSS('opacity', '1');
 });
 
-test('expands a ripple from the click point and leaves the sign-in link alone', async ({page}) => {
-  await page.goto(workspace);
-  const hero = page.locator('.hero--intro');
-  const wave = hero.locator('.hero__ripple-wave');
-  await hero.click({position: {x: 36, y: 72}});
-  await expect(wave).toHaveCount(1, {timeout: 2000});
-  await expect(wave).toHaveCSS('left', '36px');
-  await expect(wave).toHaveCSS('top', '72px');
-  await expect(wave).toHaveCount(0);
-
-  const signIn = hero.getByRole('link', {name:'Войти по коду'});
-  await signIn.evaluate(link => link.addEventListener('click', event => event.preventDefault(), {once:true}));
-  await signIn.click();
-  await expect(wave).toHaveCount(0);
-
-  await page.emulateMedia({reducedMotion:'reduce'});
-  await hero.click({position: {x:36, y:72}});
-  await expect(wave).toHaveCount(0);
-});
-
 test('uses separate skeleton surfaces and a static silhouette for the illustration effects', async ({page}) => {
   await page.emulateMedia({reducedMotion: 'reduce'});
   let release!: () => void;

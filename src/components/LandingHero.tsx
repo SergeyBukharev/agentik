@@ -2,6 +2,7 @@ import {useEffect, useRef, useState, type CSSProperties, type MouseEvent} from '
 import {ArrowRight} from 'lucide-react';
 import {AgentikMark} from './AgentikMark';
 import {allowsMotion, ShaderLayer} from './ShaderEffects';
+import type {Point} from '../motion/shader';
 import {prefetchScreen} from '../prefetch';
 import {useUi} from '../language';
 import './landing-hero-wave.css';
@@ -9,39 +10,25 @@ import './landing-hero-wave.css';
 const art = import.meta.env.BASE_URL + 'favicon.svg';
 const silhouette = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="14"/></svg>';
 const mediaMask = { '--media-mask': `url("data:image/svg+xml,${encodeURIComponent(silhouette)}")` } as CSSProperties;
-const waveSize = 160;
-type Wave = {id: number; x: number; y: number; scale: number};
 
 export function LandingHero({signedIn = false}: {signedIn?: boolean}) {
   const {t} = useUi();
   const image = useRef<HTMLImageElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'fallback'>('loading');
-  const waveId = useRef(0);
-  const [waves, setWaves] = useState<Wave[]>([]);
+  const [waveOrigin, setWaveOrigin] = useState<Point>();
 
   useEffect(() => {
     if (image.current?.complete) setStatus(image.current.naturalWidth ? 'ready' : 'fallback');
   }, []);
 
   function ripple(event: MouseEvent<HTMLElement>) {
-    if (!event.detail || event.defaultPrevented || !allowsMotion() || !(event.target instanceof Element)
+    if (status !== 'ready' || !event.detail || event.defaultPrevented || !allowsMotion() || !(event.target instanceof Element)
       || event.target.closest('a, button, input, select, textarea, label, summary, [contenteditable], [role="button"], [role="link"]')) return;
-    const banner = event.currentTarget;
-    const bounds = banner.getBoundingClientRect();
-    const x = (event.clientX - bounds.left) * banner.offsetWidth / bounds.width - banner.clientLeft;
-    const y = (event.clientY - bounds.top) * banner.offsetHeight / bounds.height - banner.clientTop;
-    const corner = Math.hypot(Math.max(x, banner.clientWidth - x), Math.max(y, banner.clientHeight - y));
-    const wave = {id: ++waveId.current, x, y, scale: corner / (waveSize * .32)};
-    setWaves(current => [...current.slice(-1), wave]);
+    setWaveOrigin({x: event.clientX, y: event.clientY});
   }
 
   return (
     <section className="hero hero--intro" onClick={ripple}>
-      <div className="hero__ripple" aria-hidden="true">
-        {waves.map(wave => <span className="hero__ripple-wave" key={wave.id}
-          style={{left:wave.x, top:wave.y, '--wave-size':`${waveSize}px`, '--wave-scale':wave.scale} as CSSProperties}
-          onAnimationEnd={() => setWaves(current => current.filter(item => item.id !== wave.id))}/>)}
-      </div>
       <div className="hero__content">
         {!signedIn && <p className="hero__label">{t('МАЛЕНЬКИЕ ПОМОЩНИКИ. БОЛЬШИЕ ВОЗМОЖНОСТИ.', 'SMALL ASSISTANTS. BIG POSSIBILITIES.')}</p>}
         <h1 className="hero__title">{t('Меньше рутины.', 'Less routine.')}<br/><span>{t('Больше жизни.', 'More life.')}</span></h1>
@@ -86,11 +73,12 @@ export function LandingHero({signedIn = false}: {signedIn?: boolean}) {
               <ShaderLayer effect="skeleton" duration={1400}/>
             </div>
           )}
-          {status === 'ready' && (
+          {status === 'ready' && !waveOrigin && (
             <div className="media-reveal-layer" style={mediaMask} aria-hidden="true">
               <ShaderLayer effect="reveal" duration={690}/>
             </div>
           )}
+          {status === 'ready' && waveOrigin && <ShaderLayer effect="ripple" duration={920} origin={waveOrigin} image={image}/>}
           {status === 'fallback' && <div className="reveal-media__fallback">
             <svg className="hero-mark__fallback" viewBox="0 0 48 48" focusable="false"><AgentikMark/></svg>
           </div>}

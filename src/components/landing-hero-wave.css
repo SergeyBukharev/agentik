@@ -1,51 +1,16 @@
-.hero__ripple {
-  --wave-highlight: color-mix(in oklch, var(--surface) 82%, transparent);
-  --wave-depth: color-mix(in oklch, var(--focus) 16%, transparent);
-  --wave-fill: color-mix(in oklch, var(--lime-soft) 54%, transparent);
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  contain: paint;
-  pointer-events: none;
+.hero-mark .shader-layer--ripple {
+  --ripple-padding: 12px;
+  inset: calc(-1 * var(--ripple-padding));
+  width: calc(100% + 2 * var(--ripple-padding));
+  height: calc(100% + 2 * var(--ripple-padding));
 }
 
-:root[data-theme='dark'] .hero__ripple {
-  --wave-highlight: color-mix(in oklch, var(--ink) 21%, transparent);
-  --wave-depth: color-mix(in oklch, #152113 30%, transparent);
-  --wave-fill: color-mix(in oklch, var(--lime) 9%, transparent);
-}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-mark .reveal-media:has(> .shader-layer--ripple[data-running]) {
+    overflow: visible;
+  }
 
-.hero__ripple-wave {
-  position: absolute;
-  inline-size: var(--wave-size);
-  block-size: var(--wave-size);
-  background:
-    radial-gradient(ellipse 48% 44% at 53% 46%, transparent 34%, var(--wave-highlight) 66%, transparent 100%),
-    radial-gradient(ellipse 44% 48% at 47% 56%, transparent 26%, var(--wave-depth) 60%, transparent 100%),
-    radial-gradient(ellipse 50% 48% at 50% 50%, var(--wave-fill), transparent 88%);
-  animation: hero-surface-wave 1.05s linear both;
-}
-
-@keyframes hero-surface-wave {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) rotate(-8deg) scale(.07, .09);
-    animation-timing-function: cubic-bezier(.16, .65, .34, 1);
+  .hero-mark .reveal-media:has(> .shader-layer--ripple[data-running]) > .reveal-media__image {
+    visibility: hidden;
   }
-  30% {
-    opacity: .92;
-    transform: translate(-50%, -50%) rotate(-2deg) scale(calc(var(--wave-scale) * .43), calc(var(--wave-scale) * .39));
-  }
-  65% {
-    opacity: .58;
-    transform: translate(-50%, -50%) rotate(3deg) scale(calc(var(--wave-scale) * .78), calc(var(--wave-scale) * .73));
-  }
-  to {
-    opacity: 0;
-    transform: translate(-50%, -50%) rotate(7deg) scale(var(--wave-scale), calc(var(--wave-scale) * 1.05));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero__ripple { visibility: hidden; }
 }
