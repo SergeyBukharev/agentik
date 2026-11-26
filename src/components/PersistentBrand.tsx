@@ -14,23 +14,39 @@ export function PersistentBrand({href, route, onAccess, lock}: {
   lock?: BrandLock;
 }) {
   const {t} = useUi();
-  const mark = useRef<HTMLImageElement>(null);
+  const mark = useRef<SVGSVGElement>(null);
+  const eyes = useRef<SVGGElement>(null);
   const anchor = useRef<HTMLAnchorElement>(null);
   const menu = useRef<HTMLDivElement>(null);
+  const animation = useRef<Animation | null>(null);
+  const previousRoute = useRef(route);
   const [menuOpen, setMenuOpen] = useState(false);
-  const previous = useRef(route);
+  useEffect(() => () => animation.current?.cancel(), []);
+
   useEffect(() => {
-    if (route === previous.current) return;
-    previous.current = route;
+    if (previousRoute.current === route) return;
+    previousRoute.current = route;
+    if (!allowsMotion() || !eyes.current?.animate) return;
+    const blink = eyes.current.animate([
+      {transform:'scaleY(1)'},
+      {transform:'scaleY(.14)', offset:.44},
+      {transform:'scaleY(.14)', offset:.52},
+      {transform:'scaleY(1)'},
+    ], {duration:270, easing:'ease-in-out'});
+    return () => blink.cancel();
+  }, [route]);
+
+  function playSpring() {
+    animation.current?.cancel();
+    animation.current = null;
     if (!allowsMotion() || !mark.current?.animate) return;
-    const animation = mark.current.animate([
+    animation.current = mark.current.animate([
       {transform:'scale(1) rotate(0deg)'},
       {transform:'scale(.90) rotate(-6deg)', offset:.36},
       {transform:'scale(1.035) rotate(2deg)', offset:.76},
       {transform:'scale(1) rotate(0deg)'},
     ], {duration:340,easing:'cubic-bezier(.22,.68,.28,1)'});
-    return () => animation.cancel();
-  }, [route]);
+  }
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -69,15 +85,27 @@ export function PersistentBrand({href, route, onAccess, lock}: {
     <>
     <a className="persistent-brand" href={href} data-tone={onAccess ? 'access' : 'default'} ref={anchor}
       aria-label={t('Agentik — главная', 'Agentik home')} aria-haspopup="menu" aria-expanded={menuOpen}
-      aria-keyshortcuts="Shift+F10" onClick={() => setMenuOpen(false)}
+      aria-keyshortcuts="Shift+F10" onClick={event => {
+        setMenuOpen(false);
+        if (event.button === 0) playSpring();
+      }}
       onContextMenu={event => {event.preventDefault(); setMenuOpen(true);}}
       onKeyDown={event => {
         if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
         event.preventDefault();
         setMenuOpen(true);
       }}>
-      <img ref={mark} className="persistent-brand__mark" src={import.meta.env.BASE_URL+'favicon.svg'}
-        alt="" width="35" height="35" draggable={false}/>
+      <svg ref={mark} className="persistent-brand__mark" viewBox="0 0 48 48"
+        width="35" height="35" aria-hidden="true" focusable="false">
+        <rect width="48" height="48" rx="14" fill="var(--brand-lime, #d4f58a)"/>
+        <path d="M24 6v5" stroke="var(--brand-ink, #242822)" strokeWidth="3" strokeLinecap="round"/>
+        <rect x="9" y="10" width="30" height="30" rx="12" fill="var(--brand-ink, #242822)"/>
+        <g ref={eyes} className="persistent-brand__eyes" fill="var(--brand-lime, #d4f58a)">
+          <rect x="16" y="18" width="5" height="9" rx="2.5"/>
+          <rect x="27" y="18" width="5" height="9" rx="2.5"/>
+        </g>
+        <path d="M18.5 31.5q5.5 5.5 11 0" fill="none" stroke="var(--brand-lime, #d4f58a)" strokeWidth="2.8" strokeLinecap="round"/>
+      </svg>
       <span className="persistent-brand__word">agentik</span>
       {lock && (
         <svg className="persistent-brand__lock" data-lock={lock} viewBox="0 0 24 24" fill="none" aria-hidden="true"

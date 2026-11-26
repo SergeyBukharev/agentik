@@ -1,5 +1,6 @@
 .kit-shell {
-  width: min(100% - 36px, 1000px);
+  --content-page-width: 1000px;
+  width: min(100% - 36px, var(--content-page-width));
   margin-inline: auto;
   padding-block: calc(var(--persistent-brand-top) + var(--persistent-brand-height) + 24px) 44px;
 }

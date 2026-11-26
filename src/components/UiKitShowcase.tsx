@@ -1,5 +1,5 @@
 import {useState, type ReactNode} from 'react';
-import {Check, ChevronRight, Plus, Star, WifiOff} from 'lucide-react';
+import {Check, ChevronRight, Plus, WifiOff} from 'lucide-react';
 import {catalog} from '../catalog';
 import {type ChatImage, type ChatModel} from '../chat-media';
 import {useUi} from '../language';
@@ -8,6 +8,7 @@ import {AgentIcon} from './Brand';
 import {CategoryIcon} from './CategoryIcon';
 import {ChatComposer, MessageImages} from './ChatComposer';
 import {ChatSuggestions} from './ChatSuggestions';
+import {FavoriteButton} from './FavoriteButton';
 import {Modal} from './Modal';
 import {ProButton} from './ProButton';
 import {ScreenSkeleton} from './ScreenSkeleton';
@@ -76,9 +77,8 @@ export function UiKitShowcase() {
         </Example>
         <Example title={t('Карточка и история','Card and history')}>
           <article className="agent-card kit-card">
-            <div className="agent-card__top"><span className="avatar avatar--lime"><AgentIcon name="PenLine"/></span>
-              <button className={`icon-button agent-card__favorite${favorited ? ' agent-card__favorite--active' : ''}`} type="button"
-                aria-label={t('Избранное','Favorite')} aria-pressed={favorited} onClick={() => setFavorited(current => !current)}><Star size={19} aria-hidden="true"/></button>
+            <div className="agent-card__top"><span className="avatar avatar--lime" data-category="Работа"><AgentIcon name="PenLine"/></span>
+              <FavoriteButton pressed={favorited} label={t('Избранное','Favorite')} onToggle={() => setFavorited(current => !current)}/>
             </div>
             <div className="agent-card__link"><p className="agent-card__title">{t('Редактор','Editor')}</p></div>
           </article>

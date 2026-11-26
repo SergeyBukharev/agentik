@@ -3,6 +3,11 @@ import type {Language} from './language';
 
 type ThreePrompts = readonly [string, string, string];
 const englishPrompts = new Map<string, ThreePrompts>(Object.entries({
+  budget: [
+    "Help me review a receipt",
+    "Help me plan household payments",
+    "Analyse our household spending",
+  ],
   writer: [
     "Edit my text while preserving my voice",
     "Write a clear email to a colleague",
@@ -62,11 +67,6 @@ const englishPrompts = new Map<string, ThreePrompts>(Object.entries({
     "Summarise my meeting notes",
     "Identify tasks and owners from the minutes",
     "Draft a meeting follow-up email",
-  ],
-  budget: [
-    "Help me organise my monthly budget",
-    "How can I save for a holiday?",
-    "Help me list my recurring expenses",
   ],
   habits: [
     "Help me build a daily reading habit",

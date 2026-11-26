@@ -68,6 +68,7 @@ export function LandingHero({signedIn = false}: {signedIn?: boolean}) {
         </div>
       </div>
       <div className="hero__content">
+        {!signedIn && <p className="hero__label">{t('МАЛЕНЬКИЕ ПОМОЩНИКИ. БОЛЬШИЕ ВОЗМОЖНОСТИ.', 'SMALL ASSISTANTS. BIG POSSIBILITIES.')}</p>}
         <h1 className="hero__title">{t('Меньше рутины.', 'Less routine.')}<br/><span>{t('Больше жизни.', 'More life.')}</span></h1>
         <p className="hero__description">{t('AI-помощники для работы, учёбы и повседневных дел.', 'AI assistants for work, learning, and everyday tasks.')}</p>
         <a className="button button--primary" href={signedIn ? '#/assistants' : '#/login'}

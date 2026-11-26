@@ -1,10 +1,10 @@
 import {createAccess, type AccessConfig} from './access.ts';
-import {isChatImage, isChatModel, type ChatImage} from '../src/chat-media.ts';
+import {isChatImage, isChatModel, type ChatImage, type ChatModel} from '../src/chat-media.ts';
 import {MAX_MEDIA_CHAT_BODY_BYTES, MAX_CHAT_BODY_BYTES, MAX_CHAT_MESSAGES, MAX_CHAT_MESSAGE_LENGTH} from '../src/chat-contract.ts';
 
-type Provider = {apiKey?:string;apiBase?:string;model?:string;vision?:boolean};
+type Provider = {apiKey?:string;apiBase?:string;model?:string;vision?:boolean;authScheme?:'Bearer'|'Api-Key';project?:string};
 type Turn = {role:'user'|'assistant';content:string;images?:ChatImage[]};
-export type ServerConfig=Provider & {providers?:Partial<Record<'chatgpt'|'deepseek',Provider>>;localToken?:string;origin?:string;origins?:string[];supabaseUrl?:string;supabaseKey?:string;fetcher?:typeof fetch;access?:AccessConfig};
+export type ServerConfig=Provider & {providers?:Partial<Record<Exclude<ChatModel,'auto'>,Provider>>;localToken?:string;origin?:string;origins?:string[];supabaseUrl?:string;supabaseKey?:string;fetcher?:typeof fetch;access?:AccessConfig};
 export function createHandler(config:ServerConfig) {
  const fetcher=config.fetcher??fetch;
  const hits=new Map<string,{count:number;start:number}>();
@@ -54,7 +54,7 @@ export function createHandler(config:ServerConfig) {
   const messages:Turn[] = payload.messages;
   const images = messages.flatMap(message=>message.images ?? []);
   if (media && images.length !== 1) return out(400,{error:'Прикрепите одно изображение.'});
-  const candidates = [config, config.providers?.chatgpt, config.providers?.deepseek].filter(
+  const candidates = [config, config.providers?.chatgpt, config.providers?.deepseek, config.providers?.alice].filter(
     (item):item is Provider => !!item?.apiKey && !!item.model);
   const provider = choice === 'auto'
     ? (candidates.find(item=>!images.length || item.vision) ?? candidates[0])
@@ -73,7 +73,12 @@ export function createHandler(config:ServerConfig) {
   if(hits.size>=10000&&!hits.has(identity))return out(429,{error:'Сервис занят. Повторите позже.'});
   const hit=hits.get(identity)??{count:0,start:now};if(hit.count>=20)return out(429,{error:'Лимит запросов: повторите через минуту.'});hit.count++;hits.set(identity,hit);
   try{
-   const response=await fetcher(`${(provider.apiBase??'https://api.openai.com/v1').replace(/\/$/,'')}/chat/completions`,{method:'POST',headers:{Authorization:`Bearer ${provider.apiKey}`,'Content-Type':'application/json'},body:JSON.stringify({model:provider.model,messages:[{role:'system',content:system},...providerMessages],max_tokens:1200}),signal:AbortSignal.timeout(30000)});
+   const upstreamHeaders: Record<string, string> = {
+    Authorization:`${provider.authScheme ?? 'Bearer'} ${provider.apiKey}`,
+    'Content-Type':'application/json',
+   };
+   if (provider.project) upstreamHeaders['OpenAI-Project'] = provider.project;
+   const response=await fetcher(`${(provider.apiBase??'https://api.openai.com/v1').replace(/\/$/,'')}/chat/completions`,{method:'POST',headers:upstreamHeaders,body:JSON.stringify({model:provider.model,messages:[{role:'system',content:system},...providerMessages],max_tokens:1200}),signal:AbortSignal.timeout(30000)});
    if(!response.ok)return out(502,{error:'AI временно не отвечает. Попробуйте ещё раз.'});
    const data=await response.json();const reply=data?.choices?.[0]?.message?.content;
    if(typeof reply!=='string'||!reply.trim())return out(502,{error:'Получен пустой ответ AI. Повторите запрос.'});

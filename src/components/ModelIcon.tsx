@@ -2,6 +2,7 @@ import {Sparkles} from 'lucide-react';
 import openai from '../assets/providers/openai.svg';
 import openaiWhite from '../assets/providers/openai-white.svg';
 import deepseek from '../assets/providers/deepseek.svg';
+import alice from '../assets/providers/alice.svg';
 import type {ChatModel} from '../chat-media';
 
 export function ModelIcon({model}: {model: ChatModel}) {
@@ -17,6 +18,13 @@ export function ModelIcon({model}: {model: ChatModel}) {
     return (
       <span className="model-icon" data-provider-icon="deepseek" aria-hidden="true">
         <img className="model-icon__image" src={deepseek} alt="" width="18" height="18"/>
+      </span>
+    );
+  }
+  if (model === 'alice') {
+    return (
+      <span className="model-icon" data-provider-icon="alice" aria-hidden="true">
+        <img className="model-icon__image" src={alice} alt="" width="18" height="18"/>
       </span>
     );
   }

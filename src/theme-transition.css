@@ -1,0 +1,13 @@
+/* Fade the browser snapshots instead of animating tokens on individual elements. */
+::view-transition { pointer-events: none; }
+::view-transition-group(root) { animation-name: none; }
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+  animation-timing-function: ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation: none; }
+}

@@ -1,6 +1,7 @@
 // @vitest-environment node
-import {it,expect} from 'vitest';
+import {it,expect,vi} from 'vitest';
 import {createHandler} from './app';
+import {createRuntime} from './runtime';
 const body={assistant:{name:'Редактор',instruction:'Помогай писать'},messages:[{role:'user',content:'Привет'}]};
 const req=(payload:unknown=body,token='test',origin='http://localhost:5173')=>new Request('http://localhost/api/chat',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',Origin:origin},body:JSON.stringify(payload)});
 const config={localToken:'test',origin:'http://localhost:5173'};
@@ -12,6 +13,7 @@ it('rejects foreign origins',async()=>{
 });
 it('reports unconfigured AI without charging a provider',async()=>{
  expect((await createHandler(config)(req())).status).toBe(503);
+ expect((await createHandler(config)(req({...body,model:'alice'}))).status).toBe(503);
 });
 it('rejects malformed and oversized messages',async()=>{
  const h=createHandler({...config,apiKey:'key'});
@@ -57,4 +59,38 @@ it('routes an allowed model choice and sends the image only through a vision pro
  expect(sent.model).toBe('vision-model');
  expect((await handler(request('auto'))).status).toBe(200);
  expect(sent.messages.at(-1).content[1]).toEqual({type:'image_url',image_url:{url:image.url}});
+});
+
+it('authenticates chat requests for Alice AI with the configured Yandex Cloud project', async () => {
+ const fetcher = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
+   Response.json({choices:[{message:{content:'Ответ Алисы'}}]}));
+ vi.stubGlobal('fetch', fetcher);
+ try {
+   const handler = createRuntime({
+     ALLOWED_ORIGIN:config.origin,
+     AGENTIK_ACCESS_SECRET:'test-only-session-secret-alice-fixture',
+     AGENTIK_ACCOUNT_EMAIL:'alice-fixture@example.test',
+     AGENTIK_ACCOUNT_CODE:'ABCDEF',
+     AI_ALICE_API_KEY:'test-only-key',
+     AI_ALICE_FOLDER_ID:'example-folder',
+   });
+   const login = await handler(new Request('http://localhost/api/access/login', {
+     method:'POST', headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({email:'alice-fixture@example.test',code:'ABCDEF'}),
+   }));
+   expect(login.status).toBe(200);
+   const {token} = await login.json();
+   const response = await handler(req({...body,model:'alice'},token));
+   expect(response.status).toBe(200);
+   expect(await response.json()).toEqual({reply:'Ответ Алисы'});
+   expect(fetcher).toHaveBeenCalledTimes(1);
+   const [url, init] = fetcher.mock.calls[0];
+   expect(url).toBe('https://ai.api.cloud.yandex.net/v1/chat/completions');
+   const headers = new Headers(init?.headers);
+   expect(headers.get('Authorization')).toBe('Api-Key test-only-key');
+   expect(headers.get('OpenAI-Project')).toBe('example-folder');
+   expect(JSON.parse(String(init?.body)).model).toBe('gpt://example-folder/aliceai-llm');
+ } finally {
+   vi.unstubAllGlobals();
+ }
 });

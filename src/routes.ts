@@ -1,8 +1,8 @@
 import {useEffect, useState} from 'react';
 import {kitPaths, type KitPage} from './kits';
 
-export type Route = {page?: string; id?: string; path: string; kind: 'home' | 'login' | 'agreement' | 'kit' | 'workspace' | 'not-found'; kit?: KitPage; homeHref: string};
-const simple = new Set(['assistants', 'characters', 'favorites', 'history', 'rooms', 'profile', 'pro', 'create']);
+export type Route = {page?: string; id?: string; boardChatId?: string; path: string; kind: 'home' | 'login' | 'agreement' | 'kit' | 'workspace' | 'not-found'; kit?: KitPage; homeHref: string};
+const simple = new Set(['assistants', 'characters', 'favorites', 'history', 'rooms', 'boards', 'profile', 'pro', 'create']);
 const detail = new Set(['assistant', 'chat', 'rooms', 'join']);
 
 export function resolveRoute(pathname: string, hash: string, base = import.meta.env.BASE_URL): Route {
@@ -15,6 +15,8 @@ export function resolveRoute(pathname: string, hash: string, base = import.meta.
   if (path === '/login') return {kind: 'login', path, homeHref};
   const kit = kitPaths.find(item => path === `/${item}` || path === `/${item}/`);
   if (kit) return {kind: 'kit', kit, path, homeHref};
+  const board = /^\/board\/([a-zA-Z0-9_-]{1,128})(?:\/([a-zA-Z0-9_-]{1,128}))?\/?$/.exec(path);
+  if (board) return {kind:'workspace', page:'board', id:board[1], boardChatId:board[2], path, homeHref};
   const match = /^\/([a-z]+)(?:\/([a-zA-Z0-9_-]{1,128}))?\/?$/.exec(path);
   if (match) {
     const [, page, id] = match;

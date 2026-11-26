@@ -124,7 +124,6 @@
   flex-shrink: 0;
   place-items: center;
   color: var(--category-ink);
-  transition: color .2s ease;
 }
 
 .category-icon__background {
@@ -133,7 +132,6 @@
   border-radius: 8px;
   background: var(--category-tint);
   opacity: .1;
-  transition: opacity .24s ease;
 }
 
 .category-icon svg {
@@ -141,12 +139,6 @@
   width: 17px;
   height: 17px;
   overflow: visible;
-}
-
-.category-icon :is(.category-icon__body, .category-icon__detail) {
-  transform-box: fill-box;
-  transform-origin: center;
-  transition: transform .26s cubic-bezier(.2, .75, .25, 1);
 }
 
 :root[data-theme='dark'] .category-icon {
@@ -159,31 +151,34 @@
   }
 }
 
-.category-list__item:is(:hover, :focus-visible) .category-icon {
-  color: var(--category-ink);
+.agent-card__top > .avatar[data-category='Работа'] { --avatar-gesture: translateY(-1.6px) rotate(-7deg); }
+.agent-card__top > .avatar[data-category='Жизнь'] { --avatar-gesture: scale(1.13); }
+.agent-card__top > .avatar[data-category='Творчество'] { --avatar-gesture: rotate(11deg) scale(1.08); }
+.agent-card__top > .avatar[data-category='Обучение'] { --avatar-gesture: scaleX(1.13) translateY(-1.5px); }
+.agent-card__top > .avatar[data-category='Дом'] { --avatar-gesture: translateY(-2px) scale(.96); }
+.agent-card__top > .avatar[data-category='Дизайн'] { --avatar-gesture: rotate(-12deg) scale(1.09); }
+.agent-card__top > .avatar[data-category='Продукт'] { --avatar-gesture: translate(1px, -2px) scale(1.08); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .agent-card__top > .avatar > svg {
+    transform-box: fill-box;
+    transform-origin: center;
+    opacity: .93;
+    transition: transform .25s cubic-bezier(.2,.75,.25,1), opacity .15s ease;
+  }
+
+  .agent-card:has(.agent-card__link:is(:focus-visible, :active)) .agent-card__top > .avatar > svg {
+    transform: var(--avatar-gesture, translateY(-1.5px) scale(1.1));
+    opacity: 1;
+  }
 }
 
-.category-list__item:is(:hover, :focus-visible) .category-icon__background {
-  opacity: 1;
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .agent-card:hover .agent-card__top > .avatar > svg {
+    transform: var(--avatar-gesture, translateY(-1.5px) scale(1.1));
+    opacity: 1;
+  }
 }
-
-.category-list__item:is(:hover, :focus-visible) .category-icon__body {
-  transform: var(--category-body, none);
-}
-
-.category-list__item:is(:hover, :focus-visible) .category-icon__detail {
-  transform: var(--category-detail, none);
-}
-
-.category-icon--all { --category-body: scale(.9); --category-detail: translate(1px, 1px); }
-.category-icon--work { --category-body: translateY(-.8px); --category-detail: translateY(.8px); }
-.category-icon--life { --category-body: scale(1.075); --category-detail: scaleX(1.18); }
-.category-icon--creative { --category-body: rotate(12deg); --category-detail: rotate(-28deg) scale(1.18); }
-.category-icon--learn { --category-body: scaleX(1.09); --category-detail: translateX(.6px); }
-.category-icon--home { --category-body: translateY(-.9px); --category-detail: scaleY(.76); }
-.category-icon--design { --category-body: rotate(-12deg); --category-detail: translate(.9px, -1px); }
-.category-icon--product { --category-body: scaleY(1.07); --category-detail: translate(.8px, -1.2px); }
-.category-icon--custom { --category-body: scale(.94); --category-detail: rotate(90deg); }
 
 .reveal-media.reveal-media--contour[data-status='loading'] {
   background: transparent;

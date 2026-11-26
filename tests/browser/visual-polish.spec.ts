@@ -60,22 +60,36 @@ test('uses separate skeleton surfaces and a static silhouette for the illustrati
   await expect(skeleton).toHaveCount(0);
 });
 
-test('fills category icon backgrounds and gives design and product distinct motion', async ({page}) => {
+test('keeps filter icons still and moves assistant avatars on hover and keyboard focus', async ({page}) => {
   await openCatalog(page);
-  const design = page.getByRole('button', {name: 'Дизайн', exact: true});
-  const product = page.getByRole('button', {name: 'Продукт', exact: true});
-  const tint = design.locator('.category-icon__background');
-  await expect(tint).toHaveCSS('opacity', '0.1');
+  const filter = page.getByRole('button', {name: 'Дизайн', exact: true});
+  await filter.hover();
+  await expect(filter.locator('.category-icon__background')).toHaveCSS('opacity', '0.1');
+  await expect(filter.locator('.category-icon__body')).toHaveCSS('transform', 'none');
+
+  const designLink = page.getByRole('link', {name:'Открыть: Графический дизайнер-иллюстратор'});
+  const productLink = page.getByRole('link', {name:'Открыть: Продакт-менеджер'});
+  const design = page.locator('.agent-card').filter({has:designLink});
+  const product = page.locator('.agent-card').filter({has:productLink});
+  const designAvatar = design.locator('.agent-card__top > .avatar > svg');
+  const productAvatar = product.locator('.agent-card__top > .avatar > svg');
+  await expect(designAvatar).toHaveCSS('transform', 'none');
   await design.hover();
-  await expect(tint).toHaveCSS('opacity', '1');
-  const designBody = design.locator('.category-icon__body');
-  await expect(designBody).not.toHaveCSS('transform', 'none');
-  const designTransform = await designBody.evaluate(node => getComputedStyle(node).transform);
+  await expect(designAvatar).toHaveCSS('opacity', '1');
+  await expect(designAvatar).not.toHaveCSS('transform', 'none');
+  const designTransform = await designAvatar.evaluate(node => getComputedStyle(node).transform);
   await product.hover();
-  await expect(tint).toHaveCSS('opacity', '0.1');
-  const productBody = product.locator('.category-icon__body');
-  await expect(productBody).not.toHaveCSS('transform', 'none');
-  await expect(productBody).not.toHaveCSS('transform', designTransform);
+  await expect(designAvatar).toHaveCSS('transform', 'none');
+  await expect(productAvatar).not.toHaveCSS('transform', 'none');
+  await expect(productAvatar).not.toHaveCSS('transform', designTransform);
+
+  await filter.hover();
+  await expect(productAvatar).toHaveCSS('transform', 'none');
+  await page.keyboard.press('Tab');
+  await productLink.focus();
+  await expect(productAvatar).not.toHaveCSS('transform', 'none');
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await expect(productAvatar).toHaveCSS('transform', 'none');
 });
 
 test('keeps 18px sidebar padding and the lime PRO button in both themes', async ({page}) => {

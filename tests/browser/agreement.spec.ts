@@ -7,7 +7,16 @@ test('keeps one fixed brand and opens the lock when the sixth input character ve
   await expect(brand).toBeVisible();
   const handle=await brand.elementHandle();
   const initial=await brand.boundingBox();
-  expect(await page.locator('link[rel="icon"]').getAttribute('href')).toBe(await brand.locator('img').getAttribute('src'));
+  const faviconHref=(await page.locator('link[rel="icon"]').getAttribute('href'))!;
+  const faviconResponse=await page.request.get(faviconHref);
+  expect(faviconResponse.ok()).toBe(true);
+  const sameGeometry=await brand.locator('.persistent-brand__mark').evaluate((mark, favicon) => {
+    const reference=new DOMParser().parseFromString(favicon, 'image/svg+xml').documentElement;
+    const geometry=(svg:Element)=>Array.from(svg.querySelectorAll('rect,path')).map(shape =>
+      [shape.localName,...['x','y','width','height','rx','d'].map(attribute=>shape.getAttribute(attribute))]);
+    return mark.getAttribute('viewBox')===reference.getAttribute('viewBox') && JSON.stringify(geometry(mark))===JSON.stringify(geometry(reference));
+  }, await faviconResponse.text());
+  expect(sameGeometry).toBe(true);
 
   await page.getByRole('link',{name:'Войти по коду'}).click();
   await expect(page.getByRole('heading',{name:'Вход в Agentik'})).toBeVisible();

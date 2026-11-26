@@ -1,6 +1,32 @@
 import {expect, test} from '@playwright/test';
 import {expectNoHorizontalScroll, workspace} from './helpers';
 
+test('aligns agreement and kits with the logo on wide screens and stacks them on mobile', async ({page}) => {
+  const brand = page.getByRole('link', {name:'Agentik — главная'});
+  for (const [route, selector] of [
+    ['agreement', '.agreement__intro'],
+    ['ui-kit', '.kit-nav'],
+    ['brand-kit', '.kit-nav'],
+    ['press-kit', '.kit-nav'],
+  ]) {
+    await page.goto(`${workspace}#/${route}`);
+    const firstBlock = page.locator(selector);
+    await expect(firstBlock).toBeVisible();
+    for (const width of [768, 1024, 1440, 390]) {
+      await page.setViewportSize({width, height:800});
+      const logo = (await brand.boundingBox())!;
+      const block = (await firstBlock.boundingBox())!;
+      if (width >= 768) {
+        expect(block.y).toBeCloseTo(logo.y, 0);
+        expect(block.x).toBeGreaterThanOrEqual(logo.x + logo.width + 12);
+      } else {
+        expect(block.y).toBeGreaterThanOrEqual(logo.y + logo.height);
+      }
+      await expectNoHorizontalScroll(page);
+    }
+  }
+});
+
 test('opens the kits from the logo context menu and keeps the primary home link', async ({page}) => {
   await page.goto(workspace);
   const brand = page.getByRole('link', {name:'Agentik — главная'});

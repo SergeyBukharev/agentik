@@ -1,5 +1,5 @@
 import {lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent} from 'react';
-import {Coins, LayoutGrid, Smile, Star, History, Users, Plus, Search, Sun, Moon, X, SlidersHorizontal, MessageCircle, ChevronRight, ChevronDown, Check, House, UserRound, WifiOff} from 'lucide-react';
+import {Coins, LayoutGrid, Smile, Star, History, Users, Plus, Search, Sun, Moon, X, SlidersHorizontal, MessageCircle, ChevronRight, ChevronDown, Check, House, UserRound, WifiOff, FolderOpen} from 'lucide-react';
 import {catalog, categories, filterAssistants, type Assistant} from './catalog';
 import type {Conversation} from './state';
 import {readLocalRooms} from './local-rooms';
@@ -17,7 +17,10 @@ import {ScreenSkeleton} from './components/ScreenSkeleton';
 import {useUi} from './language';
 import {type ChatImage, type ChatModel} from './chat-media';
 import {createChatDrafts} from './chat-drafts';
+import {MAX_CHAT_MESSAGE_LENGTH} from './chat-contract';
+import {ChatBoardTabs} from './components/ChatBoardTabs';
 import {CategoryIcon} from './components/CategoryIcon';
+import {FavoriteButton} from './components/FavoriteButton';
 import {ProButton} from './components/ProButton';
 import {Paywall} from './components/Paywall';
 import {allowsMotion, SendPulse, takeFirstMoment} from './components/ShaderEffects';
@@ -27,6 +30,7 @@ import type {AccessSession} from './access-contract';
 import type {Point} from './motion/shader';
 import {useAccess, useOnline} from './useAccess';
 import {useRoute, type Route} from './routes';
+import {useTheme} from './useTheme';
 
 const Profile = lazy(() => import('./components/Profile').then(module => ({default: module.Profile})));
 const Rooms = lazy(() => import('./components/Rooms').then(module => ({default: module.Rooms})));
@@ -34,6 +38,8 @@ const CodeGate = lazy(() => import('./components/CodeGate'));
 const Agreement = lazy(() => import('./components/Agreement').then(module => ({default: module.Agreement})));
 const PrivateChat = lazy(loadPrivateChat);
 const KitPages = lazy(() => import('./components/KitPages'));
+const ChatBoard = lazy(() => import('./components/ChatBoard').then(module => ({default:module.ChatBoard})));
+const BoardIndex = lazy(() => import('./components/ChatBoard').then(module => ({default:module.BoardIndex})));
 
 export default function App({requestReply = replyTo}: {requestReply?: typeof replyTo}) {
   const route = useRoute();
@@ -113,7 +119,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
   const [mode, setMode] = useState<'demo' | 'live'>('demo');
   const [model, setModel] = useState<ChatModel>('auto');
   const [validation,setValidation]=useState('');
-  const [dark, setDark] = useState(false);
+  const {dark, toggleTheme} = useTheme(false);
   const [drafts] = useState(createChatDrafts);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<Record<string, boolean>>({});
@@ -127,11 +133,22 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
   const email = profile.name;
   const all = useMemo(() => [...catalog, ...state.custom], [state.custom]);
   const conversation = page === 'chat' ? state.conversations.find(item => item.id === id) : undefined;
-  const assistant = page === 'assistant' ? all.find(item => item.id === id)
+  const assistant = page === 'assistant' || page === 'board' ? all.find(item => item.id === id)
     : all.find(item => item.id === conversation?.assistantId);
   const chatKey = conversation?.id ?? `new:${assistant?.id ?? ''}`;
+  const boardChat = page === 'board' && route.boardChatId
+    ? state.conversations.find(item => item.id === route.boardChatId && item.assistantId === id) : undefined;
 
-  useEffect(() => { document.documentElement.dataset.theme = dark ? 'dark' : 'light'; }, [dark]);
+  function takeBoardNotes(text: string) {
+    if (!assistant || !text.trim()) return false;
+    const target = boardChat?.id ?? `new:${assistant.id}`;
+    const combined = [drafts.get(target).trimEnd(), text].filter(Boolean).join('\n\n');
+    if (combined.length > MAX_CHAT_MESSAGE_LENGTH) return false;
+    drafts.set(target, combined);
+    location.hash = boardChat ? `#/chat/${boardChat.id}` : `#/assistant/${assistant.id}`;
+    return true;
+  }
+
   useEffect(() => { setQuery(''); setCategory('Все'); }, [route.path]);
   useEffect(schedulePrefetch, []);
   useEffect(() => {
@@ -263,8 +280,8 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
     });
     return true;
   }
- const nav=[{href:'/',label:t('Для вас','For you'),Icon:House},{href:'/assistants',label:t('Помощники','Assistants'),Icon:LayoutGrid},{href:'/characters',label:t('Персонажи','Characters'),Icon:Smile},{href:'/favorites',label:t('Избранное','Favorites'),Icon:Star},{href:'/history',label:t('История','History'),Icon:History},{href:'/rooms',label:t('Групповые чаты','Group chats'),Icon:Users}];
- const active=home?'/':`/${page}`;
+ const nav=[{href:'/',label:t('Для вас','For you'),Icon:House},{href:'/assistants',label:t('Помощники','Assistants'),Icon:LayoutGrid},{href:'/characters',label:t('Персонажи','Characters'),Icon:Smile},{href:'/favorites',label:t('Избранное','Favorites'),Icon:Star},{href:'/history',label:t('История','History'),Icon:History},{href:'/rooms',label:t('Групповые чаты','Group chats'),Icon:Users},{href:'/boards',label:t('Доски','Boards'),Icon:FolderOpen}];
+ const active=home?'/':page==='board'?'/boards':`/${page}`;
  const isChat=page==='chat'||page==='assistant';const busy=!!pending[chatKey],error=errors[chatKey];
  const isCatalog = home || page === 'assistants' || page === 'characters' || page === 'favorites';
  const visible = useMemo(() => {
@@ -295,7 +312,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
  const TitleTag=home?'h2':'h1';
  const title=home?t('Найдите своего помощника','Find your assistant'):page==='characters'?t('С кем поговорим?','Who shall we talk to?'):page==='favorites'?t('Всегда под рукой','Your favorites'):t('Помощники на каждый день','Everyday assistants');
  return <div className="app"><a className="skip-link" href="#main-content" onClick={e=>{e.preventDefault();document.getElementById('main-content')?.focus();}}>{t('К содержимому','Skip to content')}</a>
-  <aside className="sidebar"><p className="sidebar__caption">{t('МАЛЕНЬКИЕ ПОМОЩНИКИ.','SMALL ASSISTANTS.')}<br/>{t('БОЛЬШИЕ ВОЗМОЖНОСТИ.','BIG POSSIBILITIES.')}</p>
+  <aside className="sidebar">
    <nav className="navigation" aria-label={t('Главная навигация','Main navigation')}>{nav.map(({href,label,Icon})=><a className={`navigation__link${active===href?' navigation__link--active':''}`} aria-current={active===href?'page':undefined} href={`#${href}`} key={href}><Icon size={20} strokeWidth={1.8}/><span>{label}</span>{href==='/assistants'&&<span className="navigation__count">{all.filter(item=>item.kind==='assistant').length}</span>}{href==='/favorites'&&state.favorites.length>0&&<span className="navigation__count">{state.favorites.length}</span>}</a>)}</nav>
    <button className="button button--create" onClick={()=>{setValidation('');setModal('create');}}><Plus size={19}/>{t('Создать помощника','Create assistant')}</button>
    <div className="sidebar__bottom"><button className="profile-button" onClick={()=>setModal('profile')}><span className="profile-button__avatar">{email?email[0].toUpperCase():'В'}</span><span className="profile-button__text"><strong>{profile.name}</strong><span>{mode==='demo'?t('Демонстрационный режим','Demo mode'):t('Режим AI','AI mode')}</span></span><SlidersHorizontal size={17}/></button><div className="sidebar__preferences">{preferences}{proButton}</div></div>
@@ -309,7 +326,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
     </div>
     <div className="topbar__right">
      <span className="mode-label">{mode==='demo'?t('Демо-версия','Demo'):t('AI подключение','AI connected')}</span>
-     <button className="icon-button" aria-label={dark?t('Светлая тема','Light mode'):t('Тёмная тема','Dark mode')} onClick={()=>setDark(!dark)}>{dark?<Sun size={20}/>:<Moon size={20}/>}</button>
+     <button className="icon-button" aria-label={dark?t('Светлая тема','Light mode'):t('Тёмная тема','Dark mode')} onClick={toggleTheme}>{dark?<Sun size={20}/>:<Moon size={20}/>}</button>
      <button onPointerEnter={()=>prefetchScreen('profile')} onFocus={()=>prefetchScreen('profile')} className="topbar__profile" onClick={()=>setModal('profile')} aria-label={t('Открыть профиль','Open profile')}>{email?email[0].toUpperCase():'В'}</button>
     </div>
    </header>
@@ -317,20 +334,30 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
    {!persisted&&<p className="notice" role="status">{t('Браузер ограничил сохранение. Придётся ввести код при следующем открытии.','Browser storage is restricted. Sign in again next time.')}</p>}
    {!online&&!isChat&&<p className="offline-note" role="status"><WifiOff size={16}/> {t('Офлайн. Сохранённые чаты и деморежим доступны.','Offline. Saved chats and demos are available.')}</p>}
    {!saved&&<p role="alert" className="notice notice--error">{t('Не удалось прочитать или сохранить кеш. Новые изменения доступны до закрытия страницы.','Storage is unavailable. New changes will last until this page closes.')}</p>}
-   {isChat?assistant?<Suspense fallback={<ScreenSkeleton/>}><PrivateChat assistant={assistant} conversation={conversation} profile={profile}
+   {page==='board' ? (
+    assistant && (!route.boardChatId || boardChat) ? <section className="chat">
+      <h1 className="section-title">{assistant.name}</h1>
+      <ChatBoardTabs assistantId={assistant.id} conversationId={boardChat?.id} active="board"/>
+      <Suspense fallback={<ScreenSkeleton/>}>
+        <ChatBoard key={profile.id+'/'+assistant.id} profileId={profile.id} boardKey={assistant.id}
+          title={assistant.name} onUseText={takeBoardNotes}/>
+      </Suspense>
+    </section> : <PageState kind="conversation" href="#/boards"/>
+   ) : page==='boards' ? <Suspense fallback={<ScreenSkeleton/>}><BoardIndex profileId={profile.id}/></Suspense>
+   : isChat?assistant?<Suspense fallback={<ScreenSkeleton/>}><PrivateChat assistant={assistant} conversation={conversation} profile={profile}
     messagePrice={wallet.price} mode={mode} online={online} busy={busy} drafts={drafts} error={error}
     onSend={submitChat} model={model} onModel={setModel}/></Suspense>
     :<PageState kind="conversation" href="#/history"/>:
-   page==='history'?<section><p className="eyebrow">{t('ПРОДОЛЖИМ С ТОГО ЖЕ МЕСТА','PICK UP WHERE YOU LEFT OFF')}</p><h1 className="section-title">{t('Ваши разговоры','Your chats')}</h1><div className="chat-tabs"><a className="chat-tabs__link chat-tabs__link--active" href="#/history">{t('Личные','Private')}</a><a className="chat-tabs__link" onPointerEnter={()=>prefetchScreen('rooms')} onFocus={()=>prefetchScreen('rooms')} href="#/rooms"><Users size={17}/>{t('Общие комнаты','Groups')}</a></div><p className="section-description">{t('Идеи и решения, к которым можно вернуться. Сохранено в этом браузере.','Your saved chats in this browser.')}</p>{state.conversations.length?<div className="history-list">{[...state.conversations].sort((a,b)=>b.updatedAt-a.updatedAt).map(c=>{const a=all.find(a=>a.id===c.assistantId);return <a className="history-item" key={c.id} onFocus={prefetchChat} onPointerEnter={prefetchChat} href={`#/chat/${c.id}`}><span className={`avatar avatar--${a?.color??'lime'}`}><AgentIcon name={a?.icon??'Sparkles'}/></span><span className="history-item__text"><strong>{c.title}</strong><span>{a?.name} · {c.messages.length} {t('сообщений','messages')}</span></span><span className="history-item__date">{new Date(c.updatedAt).toLocaleDateString(language,{day:'numeric',month:'short'})}</span><ChevronRight size={17}/></a>;})}</div>:<Empty title={t('Здесь начнётся ваша история','Your history starts here')} text={t('Первый разговор появится здесь, когда вы отправите сообщение помощнику.','Send your first message to start your history.')}/>}</section>:
+   page==='history'?<section><p className="eyebrow">{t('ПРОДОЛЖИМ С ТОГО ЖЕ МЕСТА','PICK UP WHERE YOU LEFT OFF')}</p><h1 className="section-title">{t('Ваши разговоры','Your chats')}</h1><div className="chat-tabs"><a className="chat-tabs__link chat-tabs__link--active" href="#/history">{t('Личные','Private')}</a><a className="chat-tabs__link" onPointerEnter={()=>prefetchScreen('rooms')} onFocus={()=>prefetchScreen('rooms')} href="#/rooms"><Users size={17}/>{t('Общие комнаты','Groups')}</a><a className="chat-tabs__link" href="#/boards"><FolderOpen size={17}/>{t('Доски','Boards')}</a></div><p className="section-description">{t('Идеи и решения, к которым можно вернуться. Сохранено в этом браузере.','Your saved chats in this browser.')}</p>{state.conversations.length?<div className="history-list">{[...state.conversations].sort((a,b)=>b.updatedAt-a.updatedAt).map(c=>{const a=all.find(a=>a.id===c.assistantId);return <a className="history-item" key={c.id} onFocus={prefetchChat} onPointerEnter={prefetchChat} href={`#/chat/${c.id}`}><span className={`avatar avatar--${a?.color??'lime'}`}><AgentIcon name={a?.icon??'Sparkles'}/></span><span className="history-item__text"><strong>{c.title}</strong><span>{a?.name} · {c.messages.length} {t('сообщений','messages')}</span></span><span className="history-item__date">{new Date(c.updatedAt).toLocaleDateString(language,{day:'numeric',month:'short'})}</span><ChevronRight size={17}/></a>;})}</div>:<Empty title={t('Здесь начнётся ваша история','Your history starts here')} text={t('Первый разговор появится здесь, когда вы отправите сообщение помощнику.','Send your first message to start your history.')}/>}</section>:
    page==='rooms'||page==='join'?<Suspense fallback={<ScreenSkeleton/>}><Rooms key={`${page}/${id??''}/${profile.id}`} roomId={page==='rooms'?id:undefined} joinToken={page==='join'?id:undefined} profile={profile} onSend={showFirstSend} language={language} messagePrice={wallet.price} billMessage={chargeMessage}/></Suspense>:['assistants','characters','favorites',undefined].includes(page)?<>
    {home&&<LandingHero signedIn/>}
    <section className={`catalog${home||page==='assistants'?' catalog--discovery':''}`}><div className="mobile-intro"><p>Рады видеть вас, {profile.name==='Моё пространство'?'друг':profile.name}</p><h1>{t('С чем помочь?','How can we help?')}</h1><button className="icon-button" aria-label={t('Создать своего помощника','Create your own assistant')} onClick={()=>{setValidation('');setModal('create');}}><Plus size={23}/></button></div><div className="mobile-switch"><a className={page!=='characters'?'mobile-switch__link mobile-switch__link--active':'mobile-switch__link'} href="#/assistants">{t('Помощники','Assistants')}</a><a className={page==='characters'?'mobile-switch__link mobile-switch__link--active':'mobile-switch__link'} href="#/characters">{t('Персонажи','Characters')}</a></div><div className="section-heading"><div>{!home&&<p className="eyebrow">{page==='characters'?t('ИСТОРИИ И НОВЫЕ ЗНАКОМСТВА','STORIES AND CHARACTERS'):page==='favorites'?t('ВАША ЛИЧНАЯ КОЛЛЕКЦИЯ','YOUR COLLECTION'):t('НА КАЖДЫЙ СЛУЧАЙ','EVERYDAY HELP')}</p>}<TitleTag className={home?'section-title section-title--secondary':'section-title'}>{title}</TitleTag><p className="section-description">{page==='characters'?t('Вымышленные герои с характером. Для общения, игр и воображения.','Fictional characters for conversations and stories.'):page==='favorites'?t('Любимые помощники и персонажи в одном месте.','Your favorite assistants and characters in one place.'):t('Немного поддержки — и всё получится.','Find an assistant for the task at hand.')}</p></div><label className="search"><Search size={19}/><span className="sr-only">{t('Поиск помощника','Search assistants')}</span><input className="search__input" type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('Кто вам нужен сегодня?','Who do you need today?')}/>{query&&<button className="search__clear" onClick={()=>setQuery('')} aria-label={t('Очистить поиск','Clear search')}><X size={16}/></button>}</label></div>
    {page!=='characters'&&<div className="catalog__toolbar"><div className="category-list" aria-label={t('Категории','Categories')}>{[...categories,...(state.custom.length?['Мои помощники']:[])].map(c=><button className={`category-list__item${category===c?' category-list__item--active':''}`} aria-pressed={category===c} onClick={()=>setCategory(c)} key={c}><CategoryIcon category={c}/><span>{categoryLabel(c)}</span></button>)}</div><span className="catalog__count">{visible.length} {page==='favorites'?t('в избранном','in favorites'):t('помощников','assistants')}</span></div>}
-   {visible.length?<div className="agent-grid">{(home&&!query&&category==='Все'?visible.slice(0,6):visible).map(a=><article className="agent-card" key={a.id}><div className="agent-card__top"><span className={`avatar avatar--${a.color}`}><AgentIcon name={a.icon}/></span><button className={`icon-button agent-card__favorite${state.favorites.includes(a.id)?' agent-card__favorite--active':''}`} aria-label={`${state.favorites.includes(a.id)?t('Убрать из избранного','Remove favorite'):t('В избранное','Add favorite')}: ${a.name}`} aria-pressed={state.favorites.includes(a.id)} onClick={()=>favorite(a.id)}><Star size={19}/></button></div><a href={`#/assistant/${a.id}`} className="agent-card__link" onFocus={prefetchChat} onPointerEnter={prefetchChat} aria-label={t(`Открыть: ${a.name}`,`Open: ${a.name}`)}><h2 className="agent-card__title">{a.name}</h2><p className="agent-card__description">{a.description}</p><span className="agent-card__footer"><span>{categoryLabel(a.category)}</span><MessageCircle size={17}/></span></a></article>)}</div>:<Empty title={page==='favorites'&&!query?t('Сохраните тех, кто нравится','Save your favorites'):t('Пока никого не нашли','No assistants found')} text={page==='favorites'&&!query?t('Нажмите на звёздочку на карточке, и помощник останется здесь.','Star an assistant to keep it here.'):t('Попробуйте другое слово или выберите другую категорию.','Try a different search or category.')}/>}
+   {visible.length?<div className="agent-grid">{(home&&!query&&category==='Все'?visible.slice(0,6):visible).map(a=><article className="agent-card" key={a.id}><div className="agent-card__top"><span className={`avatar avatar--${a.color}`} data-category={a.category}><AgentIcon name={a.icon}/></span><FavoriteButton pressed={state.favorites.includes(a.id)} label={`${state.favorites.includes(a.id)?t('Убрать из избранного','Remove favorite'):t('В избранное','Add favorite')}: ${a.name}`} onToggle={()=>favorite(a.id)}/></div><a href={`#/assistant/${a.id}`} className="agent-card__link" onFocus={prefetchChat} onPointerEnter={prefetchChat} aria-label={t(`Открыть: ${a.name}`,`Open: ${a.name}`)}><h2 className="agent-card__title">{a.name}</h2><p className="agent-card__description">{a.description}</p><span className="agent-card__footer"><span>{categoryLabel(a.category)}</span><MessageCircle size={17}/></span></a></article>)}</div>:<Empty title={page==='favorites'&&!query?t('Сохраните тех, кто нравится','Save your favorites'):t('Пока никого не нашли','No assistants found')} text={page==='favorites'&&!query?t('Нажмите на звёздочку на карточке, и помощник останется здесь.','Star an assistant to keep it here.'):t('Попробуйте другое слово или выберите другую категорию.','Try a different search or category.')}/>}
    {home&&!query&&category==='Все'&&<a className="catalog__more" href="#/assistants">{t('Все помощники','All assistants')}<ChevronDown size={18}/></a>}
    </section>
    {home&&<><section className="create-banner"><span className="create-banner__icon"><Plus size={28}/></span><div><h2 className="create-banner__title">{t('Ваши задачи. Ваш помощник.','An assistant for your work')}</h2><p>{t('Задайте ему роль и характер — остальное дело за вами.','Describe a role and the way you want it to work.')}</p></div><button className="button button--secondary" onClick={()=>{setValidation('');setModal('create');}}>{t('Создать своего','Create your own')}</button></section><section className="how-it-works"><div><span className="eyebrow">{t('ПРОЩЕ, ЧЕМ КАЖЕТСЯ','GETTING STARTED')}</span><h2 className="section-title section-title--secondary">{t('От вопроса к результату','From question to result')}</h2></div><div className="how-it-works__grid">{[[t('Найдите своего','Find an assistant'),t('Выберите помощника под задачу или создайте собственного.','Pick one for the job or create your own.')],[t('Расскажите о задаче','Describe your task'),t('Напишите своими словами или начните с готового примера.','Write a message or pick a starter prompt.')],[t('Вернитесь, когда нужно','Return when you need to'),t('Разговоры останутся в истории этого браузера.','Your browser keeps your chat history.')]].map(([t,d])=><div className="how-it-works__step" key={t}><span className="how-it-works__check"><Check size={18}/></span><h3>{t}</h3><p>{d}</p></div>)}</div></section></>}
-   <footer className="footer"><a className="text-link" href="#/agreement">{t('Пользовательское соглашение','User agreement')}</a><span>{t('Немного AI. Больше возможностей.','AI for everyday work.')}</span><span>{t('Демо · 2026','Demo · 2026')}</span></footer>
+   <footer className="footer"><a className="text-link" href="#/agreement">{t('Пользовательское соглашение','User agreement')}</a><span>{t('Немного AI. Больше возможностей.','AI for everyday work.')}</span><span>{t('Демо · 2026 · (c) Sergey Buharev','Demo · 2026 · (c) Sergey Buharev')}</span></footer>
    </>:<Empty title="Такой страницы нет" text="Вернитесь к помощникам и выберите, с чего начать."/>}
   </main></div>
   <nav className="bottom-nav" aria-label={t('Нижняя навигация','Bottom navigation')}><a className={`bottom-nav__item${['assistants','characters',undefined].includes(page)?' bottom-nav__item--active':''}`} href="#/assistants"><LayoutGrid size={22}/><span>{t('Каталог','Catalog')}</span></a><a className={`bottom-nav__item${['history','chat','rooms','join'].includes(page??'')?' bottom-nav__item--active':''}`} onPointerEnter={()=>prefetchScreen('rooms')} href="#/history"><MessageCircle size={22}/><span>{t('Чаты','Chats')}</span></a><button className="bottom-nav__create" aria-label={t('Создать помощника','Create assistant')} onClick={()=>{setValidation('');setModal('create');}}><Plus size={25}/></button><a className={`bottom-nav__item${page==='favorites'?' bottom-nav__item--active':''}`} href="#/favorites"><Star size={22}/><span>{t('Избранное','Favorites')}</span></a><button className="bottom-nav__item" onPointerEnter={()=>prefetchScreen('profile')} onClick={()=>setModal('profile')}><UserRound size={22}/><span>{t('Профиль','Profile')}</span></button></nav>

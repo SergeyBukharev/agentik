@@ -1,5 +1,6 @@
 .agreement {
-  width: min(100%, 780px);
+  --content-page-width: 780px;
+  width: min(100%, var(--content-page-width));
   margin-inline: auto;
   padding: max(88px,calc(env(safe-area-inset-top) + 72px)) max(16px,env(safe-area-inset-right)) max(40px,calc(env(safe-area-inset-bottom) + 24px)) max(16px,env(safe-area-inset-left));
 }

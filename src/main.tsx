@@ -5,6 +5,7 @@ import './styles.css';
 import './access-motion.css';
 import './composer.css';
 import './persistent-brand.css';
+import './theme-transition.css';
 import {UiLanguageProvider} from './language';
 import App from './App';
 import {ErrorBoundary} from './ErrorBoundary';

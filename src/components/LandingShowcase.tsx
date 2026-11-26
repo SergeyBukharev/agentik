@@ -14,7 +14,7 @@ export default function LandingShowcase() {
         {catalog.slice(0, 3).map(assistant => (
           <article className="agent-card" key={assistant.id}>
             <div className="agent-card__top">
-              <span className={`avatar avatar--${assistant.color}`}><AgentIcon name={assistant.icon}/></span>
+              <span className={`avatar avatar--${assistant.color}`} data-category={assistant.category}><AgentIcon name={assistant.icon}/></span>
             </div>
             <a href={`#/assistant/${assistant.id}`} className="agent-card__link" onFocus={()=>prefetchScreen('login')} onPointerEnter={()=>prefetchScreen('login')}>
               <h3 className="agent-card__title">{assistant.name}</h3>

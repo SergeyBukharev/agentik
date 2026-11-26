@@ -18,6 +18,7 @@ function readCodeFile(path: string) {
 
 export function createRuntime(env: Environment, loopbackPort?: number) {
   const origins = (env.ALLOWED_ORIGIN ?? '').split(',').map(value => value.trim()).filter(Boolean);
+  const aliceFolder = env.AI_ALICE_FOLDER_ID?.trim();
   if (loopbackPort) {
     origins.push(`http://127.0.0.1:${loopbackPort}`, `http://localhost:${loopbackPort}`, `http://[::1]:${loopbackPort}`);
   }
@@ -30,6 +31,13 @@ export function createRuntime(env: Environment, loopbackPort?: number) {
     providers: {
       chatgpt: {apiKey:env.AI_OPENAI_API_KEY, model:env.AI_OPENAI_MODEL, apiBase:env.AI_OPENAI_BASE ?? 'https://api.openai.com/v1', vision:true},
       deepseek: {apiKey:env.AI_DEEPSEEK_API_KEY, model:env.AI_DEEPSEEK_MODEL, apiBase:env.AI_DEEPSEEK_BASE ?? 'https://api.deepseek.com/v1'},
+      alice: {
+        apiKey:env.AI_ALICE_API_KEY,
+        apiBase:env.AI_ALICE_API_BASE ?? 'https://ai.api.cloud.yandex.net/v1',
+        model:aliceFolder ? `gpt://${aliceFolder}/${env.AI_ALICE_MODEL?.trim() || 'aliceai-llm'}` : undefined,
+        authScheme:'Api-Key',
+        project:aliceFolder,
+      },
     },
     access: {
       codesText: readCodeFile(resolve(env.AGENTIK_CODES_FILE || 'codes-for-pro.txt')),

@@ -19,6 +19,8 @@ export function offlinePlugin(): Plugin {
     },
     generateBundle(_options, bundle) {
       const files = Object.keys(bundle).filter(path => !path.endsWith('.map'));
+      const optional = files.filter(path => /(?:^|\/)pdf(?:[.-]|$)/i.test(path));
+      const shellFiles = files.filter(path => !optional.includes(path));
       const digest = createHash('sha256').update(base).update(files.join('|'));
       for (const path of publicAssets) digest.update(readFileSync(resolve(publicDir, path)));
       for (const entry of Object.values(bundle)) {
@@ -27,8 +29,9 @@ export function offlinePlugin(): Plugin {
       const version = digest.digest('hex').slice(0, 12);
       const source = `const CACHE='agentik-shell-${version}';
 const BASE=${JSON.stringify(base)};
-const FILES=${JSON.stringify(['./', ...files.map(path => './' + path), ...publicAssets.map(path => './' + path)])};
-const ASSETS=new Set(FILES.slice(1).map(path=>BASE+path.slice(2)));
+const FILES=${JSON.stringify(['./', ...shellFiles.map(path => './' + path), ...publicAssets.map(path => './' + path)])};
+const OPTIONAL=${JSON.stringify(optional.map(path => './' + path))};
+const ASSETS=new Set([...FILES.slice(1),...OPTIONAL].map(path=>BASE+path.slice(2)));
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('agentik-shell-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{

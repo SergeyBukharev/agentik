@@ -22,10 +22,13 @@ test('opens the model menu, displays provider marks and supports keyboard select
   await expect(menu).toBeVisible();
   const openai=menu.getByRole('option',{name:'ChatGPT'});
   const deepseek=menu.getByRole('option',{name:'DeepSeek'});
+  const alice=menu.getByRole('option',{name:'Алиса AI'});
   await expect(openai.locator('[data-provider-icon="openai"] img:visible')).toHaveJSProperty('complete',true);
   await expect(openai.locator('[data-provider-icon="openai"] img:visible')).not.toHaveJSProperty('naturalWidth',0);
   await expect(deepseek.locator('[data-provider-icon="deepseek"] img')).toHaveJSProperty('complete',true);
   await expect(deepseek.locator('[data-provider-icon="deepseek"] img')).not.toHaveJSProperty('naturalWidth',0);
+  await expect(alice.locator('[data-provider-icon="alice"] img')).toHaveJSProperty('complete',true);
+  await expect(alice.locator('[data-provider-icon="alice"] img')).not.toHaveJSProperty('naturalWidth',0);
   await expect(menu.getByRole('option',{name:'Авто'})).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(openai).toBeFocused();
@@ -45,6 +48,12 @@ test('opens the model menu, displays provider marks and supports keyboard select
   await page.keyboard.press('Escape');
   await expect(trigger).toBeFocused();
   await expect(trigger).toContainText('ChatGPT');
+  await trigger.press('Enter');
+  await alice.click();
+  await expect(trigger).toContainText('Алиса AI');
+  await page.setViewportSize({width:1024,height:768});
+  await page.getByRole('button',{name:'ENG',exact:true}).click();
+  await expect(page.getByRole('combobox',{name:'Model'})).toContainText('Alice AI');
 });
 
 test('uses the same themed selector in the profile and closes the menu before the dialog',async({page})=>{

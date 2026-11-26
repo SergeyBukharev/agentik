@@ -1,9 +1,10 @@
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useRef} from 'react';
 import {ArrowLeft, Download, Moon, Sun} from 'lucide-react';
 import palette from '../../design-system/colors.json';
 import paletteDownload from '../../design-system/colors.json?url';
 import {kitPages, kitPaths, type KitPage} from '../kits';
 import {useUi} from '../language';
+import {useTheme} from '../useTheme';
 import {UiKitShowcase} from './UiKitShowcase';
 import './kit-pages.css';
 
@@ -16,13 +17,9 @@ const paletteNames = ['brand-lime', 'brand-ink', 'ink', 'muted', 'canvas', 'surf
 
 export default function KitPages({page}: {page: KitPage}) {
   const {t} = useUi();
-  const [dark, setDark] = useState(() => document.documentElement.dataset.theme === 'dark');
+  const {dark, toggleTheme} = useTheme(() => document.documentElement.dataset.theme === 'dark');
   const heading = useRef<HTMLHeadingElement>(null);
   const headingText = t(...kitPages[page]);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  }, [dark]);
 
   useEffect(() => {
     heading.current?.focus({preventScroll:true});
@@ -32,7 +29,7 @@ export default function KitPages({page}: {page: KitPage}) {
     <nav className="kit-nav" aria-label={t('Материалы Agentik', 'Agentik kits')}>
       {kitPaths.map(kit => <a key={kit} href={`#/${kit}`} aria-current={page === kit ? 'page' : undefined}>{t(...kitPages[kit])}</a>)}
       <button type="button" className="icon-button kit-theme" aria-label={dark ? t('Светлая тема','Light theme') : t('Тёмная тема','Dark theme')}
-        onClick={() => setDark(current => !current)}>{dark ? <Sun size={19} aria-hidden="true"/> : <Moon size={19} aria-hidden="true"/>}</button>
+        onClick={toggleTheme}>{dark ? <Sun size={19} aria-hidden="true"/> : <Moon size={19} aria-hidden="true"/>}</button>
     </nav>
     <header className="kit-header">
       <h1 tabIndex={-1} ref={heading}>{headingText}</h1>

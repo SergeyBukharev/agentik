@@ -1,4 +1,4 @@
-import {memo, useRef, useSyncExternalStore} from 'react';
+import {lazy, memo, Suspense, useRef, useSyncExternalStore} from 'react';
 import {ChevronLeft, WifiOff} from 'lucide-react';
 import type {Assistant} from '../catalog';
 import type {Conversation} from '../state';
@@ -7,10 +7,13 @@ import {WelcomeTitle} from './ShaderEffects';
 import {ChatComposer, MessageImages} from './ChatComposer';
 import {ChatSharing} from './ChatSharing';
 import {ChatSuggestions} from './ChatSuggestions';
+import {ChatBoardTabs} from './ChatBoardTabs';
 import type {ChatImage, ChatModel} from '../chat-media';
 import type {ChatDrafts} from '../chat-drafts';
 import type {LocalProfile} from '../session';
 import {useUi} from '../language';
+
+const FamilyBudget = lazy(() => import('./FamilyBudget').then(module => ({default:module.FamilyBudget})));
 
 const PrivateMessages = memo(function PrivateMessages({messages, assistantName, userName}: {
   messages: Conversation['messages'];
@@ -79,6 +82,8 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
           <a className="button button--secondary" href={`#/assistant/${assistant.id}`}>{t('Новый разговор','New chat')}</a>
         </div>}
       </div>
+      <ChatBoardTabs assistantId={assistant.id} conversationId={conversation?.id} active="chat"/>
+      {assistant.id === 'budget' && <Suspense fallback={null}><FamilyBudget profileId={profile.id}/></Suspense>}
       <div className="chat__messages" aria-live="polite" aria-busy={busy} data-long-thread={(conversation?.messages.length ?? 0) > 60 || undefined}>
         {conversation?.messages.length ? <PrivateMessages messages={conversation.messages} assistantName={assistant.name} userName={t('Вы','You')}/> : (
           <div className="chat-welcome">

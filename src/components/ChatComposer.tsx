@@ -7,6 +7,13 @@ import {useDictation} from '../useDictation';
 import {AgentSelect} from './AgentSelect';
 import {ModelIcon} from './ModelIcon';
 
+const modelLabels: Record<ChatModel, [string, string]> = {
+  auto: ['Авто', 'Auto'],
+  chatgpt: ['ChatGPT', 'ChatGPT'],
+  deepseek: ['DeepSeek', 'DeepSeek'],
+  alice: ['Алиса AI', 'Alice AI'],
+};
+
 export function MessageImages({images}: {images?: ChatImage[]}) {
   if (!images?.length) return null;
   return <div className="chat-images">{images.map(image =>
@@ -147,7 +154,7 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
             <AgentSelect label={t('Модель', 'Model')} value={model} disabled={locked} side="top" onChange={onModel}
               options={CHAT_MODELS.map(value => ({
                 value,
-                label: value === 'auto' ? t('Авто', 'Auto') : value === 'chatgpt' ? 'ChatGPT' : 'DeepSeek',
+                label: t(...modelLabels[value]),
                 icon: <ModelIcon model={value}/>,
               }))}/>
           </div>}

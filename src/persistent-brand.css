@@ -28,6 +28,7 @@
 
 :root[data-theme='dark'] .persistent-brand { border-color: transparent; }
 .persistent-brand__mark { display: block; border-radius: 10px; flex: 0 0 auto; }
+.persistent-brand__eyes { transform-box: fill-box; transform-origin: center; }
 .persistent-brand__word {
   font: 800 25px/1 'Manrope Variable', sans-serif;
   letter-spacing: -.045em;
@@ -93,7 +94,7 @@
   --sidebar-padding: 18px;
   padding: var(--sidebar-padding);
 }
-.sidebar__caption {
+.sidebar .navigation {
   margin-block-start: calc(var(--persistent-brand-top) + var(--persistent-brand-height) + 24px - var(--sidebar-padding));
 }
 .code-gate {
@@ -109,6 +110,15 @@
 .code-gate__agreement a { display: inline-flex; align-items: center; min-height: 44px; color: #dce8d6; }
 .profile__agreement { display: inline-flex; align-items: center; min-height: 44px; margin-block-start: 9px; }
 .state-page { padding-block-start: calc(var(--persistent-brand-top) + var(--persistent-brand-height)); }
+
+@media (min-width: 768px) {
+  main:is(.agreement, .kit-shell) {
+    --brand-rail: calc(var(--persistent-brand-inline) + 164px);
+    width: min(var(--content-page-width), 100% - var(--brand-rail) - max(18px, env(safe-area-inset-right)));
+    margin-inline: max(var(--brand-rail), (100% - var(--content-page-width)) / 2) auto;
+    padding-block-start: var(--persistent-brand-top);
+  }
+}
 
 @media(max-width:640px) {
   :root {

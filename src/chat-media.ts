@@ -1,5 +1,5 @@
 export type ChatImage = {id: string; name: string; url: string};
-export const CHAT_MODELS = ['auto', 'chatgpt', 'deepseek'] as const;
+export const CHAT_MODELS = ['auto', 'chatgpt', 'deepseek', 'alice'] as const;
 export type ChatModel = typeof CHAT_MODELS[number];
 export function isChatModel(value: unknown): value is ChatModel {
   return CHAT_MODELS.some(item => item === value);
