@@ -1,5 +1,5 @@
 import {useRef, useState, type CSSProperties, type RefObject} from 'react';
-import {ImagePlus, Mic, Send, X} from 'lucide-react';
+import {ArrowDownLeft, ArrowUpRight, ImagePlus, Mic, Send, X} from 'lucide-react';
 import {MAX_CHAT_MESSAGE_LENGTH} from '../chat-contract';
 import {CHAT_MODELS, prepareChatImage, type ChatImage, type ChatModel} from '../chat-media';
 import {useUi, type Language} from '../language';
@@ -52,6 +52,7 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
   const sendButton = useRef<HTMLButtonElement>(null);
   const submitting = useRef(false);
   const [sending, setSending] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const locked = busy || sending;
   const [image, setImage] = useState<ChatImage>();
   const [loading, setLoading] = useState(false);
@@ -74,6 +75,7 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
   }[issue]), locked || disabled);
   const recording = microphone.phase === 'listening';
   const microphoneLabel = t('Удерживайте для диктовки', 'Hold to dictate');
+  const expandLabel = expanded ? t('Уменьшить поле сообщения', 'Shrink message field') : t('Увеличить поле сообщения', 'Expand message field');
 
   const sendPrice = retryDraft && !image ? 0 : price;
 
@@ -122,15 +124,21 @@ export function ChatComposer({draft, onDraft, onSubmit, onValidate, messageId = 
         {image && <div className="composer__attachment"><img src={image.url} alt=""/><span>{image.name}</span>
           <button type="button" className="icon-button" disabled={locked} onClick={() => setImage(undefined)} aria-label={t('Удалить изображение', 'Remove image')}><X size={17}/></button></div>}
         <label htmlFor={messageId} className="sr-only">{messageId === 'room-message' ? t('Сообщение участникам','Message to members') : t('Ваше сообщение','Your message')}</label>
-        <textarea id={messageId} ref={field} className="composer__input" placeholder={t('Напишите сообщение…', 'Write a message…')}
-          value={draft} maxLength={MAX_CHAT_MESSAGE_LENGTH} readOnly={locked} aria-invalid={required || undefined}
-          aria-describedby={hint ? messageId+'-hint' : undefined}
-          onChange={event => {onDraft(event.target.value); if(required) {setRequired(false); setHint('');}}}
-          onKeyDown={event => {
-            if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
-              event.preventDefault(); void submit();
-            }
-          }}/>
+        <div className="composer__editor">
+          <textarea id={messageId} ref={field} className="composer__input" placeholder={t('Напишите сообщение…', 'Write a message…')}
+            data-expanded={expanded} value={draft} maxLength={MAX_CHAT_MESSAGE_LENGTH} readOnly={locked} aria-invalid={required || undefined}
+            aria-describedby={hint ? messageId+'-hint' : undefined}
+            onChange={event => {onDraft(event.target.value); if(required) {setRequired(false); setHint('');}}}
+            onKeyDown={event => {
+              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
+                event.preventDefault(); void submit();
+              }
+            }}/>
+          <button type="button" className="icon-button composer__expand" aria-label={expandLabel} title={expandLabel}
+            aria-controls={messageId} aria-expanded={expanded} onClick={() => setExpanded(current => !current)}>
+            {expanded ? <ArrowDownLeft size={18} aria-hidden="true"/> : <ArrowUpRight size={18} aria-hidden="true"/>}
+          </button>
+        </div>
         <div className="composer__toolbar">
           <input ref={input} type="file" hidden accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
             onChange={event => {const file = event.target.files?.[0]; event.target.value = ''; void attach(file);}}/>

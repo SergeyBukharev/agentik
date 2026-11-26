@@ -27,6 +27,7 @@ export default defineConfig({
       AGENTIK_ACCOUNT_EMAIL: 'owner@example.test',
       AGENTIK_ACCOUNT_EMAIL_ALIASES: 'alias@example.test',
       AGENTIK_ACCOUNT_CODE: '123QWE',
+      AGENTIK_CLIENT_ACCOUNTS: '[]',
       AGENTIK_PRO_CODES: 'PD7B4M',
     },
     timeout: 30_000,

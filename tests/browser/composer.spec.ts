@@ -1,5 +1,5 @@
 import {expect,test} from '@playwright/test';
-import {codeField,enterCode,messageField,openCatalog,selectChoice,sendButton,workspace} from './helpers';
+import {codeB,codeField,enterCode,expectNoHorizontalScroll,messageField,openCatalog,selectChoice,sendButton,workspace} from './helpers';
 
 test('requires the configured email and keeps only the active code cell highlighted',async({page})=>{
   await page.goto(workspace+'#/login');
@@ -23,6 +23,11 @@ test('opens PRO after the second accepted message, keeps the third draft and sho
   await expect(model).toContainText('DeepSeek');
   const balance = page.getByLabel('Баланс демотокенов');
   await expect(balance).toHaveText('2');
+  await expect(balance).toHaveRole('button');
+  await balance.click();
+  await expect(page.getByRole('dialog')).toContainText('Продолжайте с Agentik PRO');
+  await page.keyboard.press('Escape');
+  await expect(balance).toBeFocused();
   await expect(page.locator('[data-send-price]')).toHaveText('1 токен');
   await messageField(page).fill('Первое сообщение');
   await messageField(page).press('Enter');
@@ -84,6 +89,15 @@ test('holds K to dictate into an editable draft and renders the text reveal',asy
   await expect(messageField(page)).toHaveValue('Черновик из диктовки Черновик из диктовки');
 });
 
+test('shows unlimited PRO balance without a paywall trigger', async ({page}) => {
+  await openCatalog(page, codeB);
+  const balance = page.getByLabel('Баланс демотокенов');
+  await expect(balance).toHaveText('∞');
+  await expect(balance).not.toHaveRole('button');
+  await balance.click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
 test('opens the profile, assistant form and PRO from their direct links',async({page})=>{
   await openCatalog(page);
   for(const [route,title] of [
@@ -95,5 +109,34 @@ test('opens the profile, assistant form and PRO from their direct links',async({
     await expect(page.getByRole('dialog',{name:title})).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page).toHaveURL(/#\/assistants$/);
+  }
+});
+
+test('expands the same draft from the top-right of the composer on desktop and mobile', async ({page}) => {
+  await page.goto(workspace+'#/assistant/writer');
+  await enterCode(page);
+  const field = messageField(page);
+  await field.fill('Черновик останется на месте');
+  for (const width of [1120, 320]) {
+    await page.setViewportSize({width, height:690});
+    const expand = page.getByRole('button', {name:'Увеличить поле сообщения'});
+    await expect(expand).toBeVisible();
+    await expect(expand).toHaveAttribute('aria-controls', 'message');
+    await expect(expand).toHaveAttribute('aria-expanded', 'false');
+    const fieldBounds = (await field.boundingBox())!;
+    const expandBounds = (await expand.boundingBox())!;
+    expect(expandBounds.y).toBe(fieldBounds.y);
+    expect(expandBounds.x+expandBounds.width).toBeCloseTo(fieldBounds.x+fieldBounds.width, 0);
+    await expect(field).toHaveCSS('resize', 'none');
+    await expand.press('Enter');
+
+    const collapse = page.getByRole('button', {name:'Уменьшить поле сообщения'});
+    await expect(collapse).toHaveAttribute('aria-expanded', 'true');
+    expect((await field.boundingBox())!.height).toBeGreaterThan(fieldBounds.height);
+    await expect(field).toHaveValue('Черновик останется на месте');
+    await expectNoHorizontalScroll(page);
+    await collapse.click();
+    await expect(expand).toHaveAttribute('aria-expanded', 'false');
+    expect((await field.boundingBox())!.height).toBe(fieldBounds.height);
   }
 });

@@ -1,4 +1,4 @@
-import {lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent} from 'react';
+import {lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent} from 'react';
 import {Coins, LayoutGrid, Smile, Star, History, Users, Plus, Search, Sun, Moon, X, SlidersHorizontal, MessageCircle, ChevronRight, ChevronDown, Check, House, UserRound, WifiOff} from 'lucide-react';
 import {catalog, categories, filterAssistants, type Assistant} from './catalog';
 import type {Conversation} from './state';
@@ -16,6 +16,7 @@ import {PageState} from './components/PageState';
 import {ScreenSkeleton} from './components/ScreenSkeleton';
 import {useUi} from './language';
 import {type ChatImage, type ChatModel} from './chat-media';
+import {createChatDrafts} from './chat-drafts';
 import {CategoryIcon} from './components/CategoryIcon';
 import {ProButton} from './components/ProButton';
 import {Paywall} from './components/Paywall';
@@ -32,6 +33,7 @@ const Rooms = lazy(() => import('./components/Rooms').then(module => ({default: 
 const CodeGate = lazy(() => import('./components/CodeGate'));
 const Agreement = lazy(() => import('./components/Agreement').then(module => ({default: module.Agreement})));
 const PrivateChat = lazy(loadPrivateChat);
+const KitPages = lazy(() => import('./components/KitPages'));
 
 export default function App({requestReply = replyTo}: {requestReply?: typeof replyTo}) {
   const route = useRoute();
@@ -54,6 +56,8 @@ export default function App({requestReply = replyTo}: {requestReply?: typeof rep
     screen = <Suspense fallback={<main className="state-page"><ScreenSkeleton/></main>}>
       <Agreement key={session?.accountId ?? 'guest'} accountId={session?.accountId}/>
     </Suspense>;
+  } else if (route.kind === 'kit' && route.kit) {
+    screen = <Suspense fallback={<main className="state-page"><ScreenSkeleton/></main>}><KitPages page={route.kit}/></Suspense>;
   } else if (!session) {
     screen = route.kind === 'home' ? <PublicLanding/> : (
       <Suspense fallback={<main className="state-page"><ScreenSkeleton compact/></main>}>
@@ -110,7 +114,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
   const [model, setModel] = useState<ChatModel>('auto');
   const [validation,setValidation]=useState('');
   const [dark, setDark] = useState(false);
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [drafts] = useState(createChatDrafts);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const [pulse, setPulse] = useState<Point>();
@@ -121,7 +125,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
   const page = modalRoute ? 'assistants' : route.page;
   const home = route.kind === 'home';
   const email = profile.name;
-  const all = [...catalog, ...state.custom];
+  const all = useMemo(() => [...catalog, ...state.custom], [state.custom]);
   const conversation = page === 'chat' ? state.conversations.find(item => item.id === id) : undefined;
   const assistant = page === 'assistant' ? all.find(item => item.id === id)
     : all.find(item => item.id === conversation?.assistantId);
@@ -192,7 +196,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
 
   function send(retry: boolean, anchor: HTMLElement | null, images: ChatImage[]) {
     if (!assistant || controllers.current.has(chatKey) || (mode === 'live' && !online)) return false;
-    const input = (drafts[chatKey] ?? '').trim();
+    const input = drafts.get(chatKey).trim();
     if (!retry && !input && !images.length) return false;
     const target = conversation ?? {id: crypto.randomUUID(), assistantId: assistant.id, title: input.slice(0, 70) || images[0]?.name || t('Изображение','Image'), messages: [], updatedAt: Date.now()};
     const id = target.id;
@@ -224,7 +228,8 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
     controllers.current.set(id, controller);
     if (chatKey !== id) {
       controllers.current.set(chatKey, controller);
-      setDrafts(current => ({...current, [id]: input, [chatKey]: ''}));
+      drafts.set(id, input);
+      drafts.set(chatKey, '');
       location.hash = `#/chat/${id}`;
     }
     setErrors(current => ({...current, [id]: ''}));
@@ -246,7 +251,7 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
           return {...item, messages, updatedAt:Date.now()};
         }),
       }));
-      setDrafts(current => ({...current,[id]:current[id]?.trim() === sent.prompt ? '' : current[id]}));
+      if (drafts.get(id).trim() === sent.prompt) drafts.set(id, '');
     }).catch(error => {
       if (!controller.signal.aborted) {
         setErrors(current => ({...current,[id]:error instanceof Error ? error.message : 'Не удалось получить ответ.'}));
@@ -260,20 +265,29 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
   }
  const nav=[{href:'/',label:t('Для вас','For you'),Icon:House},{href:'/assistants',label:t('Помощники','Assistants'),Icon:LayoutGrid},{href:'/characters',label:t('Персонажи','Characters'),Icon:Smile},{href:'/favorites',label:t('Избранное','Favorites'),Icon:Star},{href:'/history',label:t('История','History'),Icon:History},{href:'/rooms',label:t('Групповые чаты','Group chats'),Icon:Users}];
  const active=home?'/':`/${page}`;
- const isChat=page==='chat'||page==='assistant';const busy=!!pending[chatKey],draft=drafts[chatKey]??'',error=errors[chatKey];
- const visible=filterAssistants(all.filter(a=>page==='characters'?a.kind==='character':page==='favorites'?state.favorites.includes(a.id):a.kind==='assistant'),query,category);
+ const isChat=page==='chat'||page==='assistant';const busy=!!pending[chatKey],error=errors[chatKey];
+ const isCatalog = home || page === 'assistants' || page === 'characters' || page === 'favorites';
+ const visible = useMemo(() => {
+   if (!isCatalog) return [];
+   const entries = all.filter(a => page === 'characters' ? a.kind === 'character'
+     : page === 'favorites' ? state.favorites.includes(a.id) : a.kind === 'assistant');
+   return filterAssistants(entries, query, category);
+ }, [isCatalog, all, state.favorites, page, query, category]);
  const languagePicker=<div className="language-choice" role="group" aria-label={t('Язык интерфейса','Interface language')}>
    <button type="button" aria-pressed={language==='ru'} onClick={()=>setLanguage('ru')}>RU</button>
    <button type="button" aria-pressed={language==='en'} onClick={()=>setLanguage('en')}>ENG</button>
  </div>;
+ const balanceLabel = t('Баланс демотокенов','Demo token balance');
  const preferences=<div className="account-preferences">
    {languagePicker}
-   <div className="account-balance">
+   {session.plan === 'pro' ? <div className="account-balance">
      <Coins size={15} aria-hidden="true"/>
-     <div><span aria-hidden="true">{t('Баланс','Balance')}</span>
-       <output aria-label={t('Баланс демотокенов','Demo token balance')}>{Number.isFinite(wallet.remaining)?wallet.remaining:'∞'}</output>
-     </div>
-   </div>
+     <output aria-label={balanceLabel}>∞</output>
+   </div> : <button type="button" className="account-balance"
+     aria-label={`${balanceLabel}: ${wallet.remaining}`} aria-haspopup="dialog" onClick={()=>setModal('pro')}>
+     <Coins size={15} aria-hidden="true"/>
+     <span aria-hidden="true">{wallet.remaining}</span>
+   </button>}
  </div>;
  const proButton=<ProButton label={session.plan==='pro'?'Agentik PRO':t('Купить PRO','Get PRO')} onClick={()=>setModal('pro')}/>;
  const categoryLabels:Record<string,string>={'Все':'All','Работа':'Work','Жизнь':'Life','Творчество':'Creative','Обучение':'Learning','Дом':'Home','Дизайн':'Design','Продукт':'Product','Мои помощники':'My assistants'};
@@ -286,14 +300,26 @@ function Workspace({requestReply, profile, onSwitch, route, session, persisted, 
    <button className="button button--create" onClick={()=>{setValidation('');setModal('create');}}><Plus size={19}/>{t('Создать помощника','Create assistant')}</button>
    <div className="sidebar__bottom"><button className="profile-button" onClick={()=>setModal('profile')}><span className="profile-button__avatar">{email?email[0].toUpperCase():'В'}</span><span className="profile-button__text"><strong>{profile.name}</strong><span>{mode==='demo'?t('Демонстрационный режим','Demo mode'):t('Режим AI','AI mode')}</span></span><SlidersHorizontal size={17}/></button><div className="sidebar__preferences">{preferences}{proButton}</div></div>
   </aside>
-  <div className="app__body"><header className="topbar"><div className="topbar__left"><span className="topbar__breadcrumb">{t('Ваше пространство','Your workspace')}</span><ChevronRight size={14}/><span>{isChat?t('Разговор','Chat'):nav.find(n=>n.href===active)?.label??t('Для вас','For you')}</span></div><div className="topbar__right"><span className="mode-label">{mode==='demo'?t('Демо-версия','Demo'):t('AI подключение','AI connected')}</span><button className="icon-button" aria-label={dark?t('Светлая тема','Light mode'):t('Тёмная тема','Dark mode')} onClick={()=>setDark(!dark)}>{dark?<Sun size={20}/>:<Moon size={20}/>}</button><button onPointerEnter={()=>prefetchScreen('profile')} onFocus={()=>prefetchScreen('profile')} className="topbar__profile" onClick={()=>setModal('profile')} aria-label={t('Открыть профиль','Open profile')}>{email?email[0].toUpperCase():'В'}</button></div></header>
+  <div className="app__body">
+   <header className="topbar">
+    <div className="topbar__left">
+     <a className="topbar__breadcrumb" href="#/history">{t('Ваше пространство','Your workspace')}</a>
+     <ChevronRight size={14} aria-hidden="true"/>
+     <span>{isChat?t('Разговор','Chat'):nav.find(n=>n.href===active)?.label??t('Для вас','For you')}</span>
+    </div>
+    <div className="topbar__right">
+     <span className="mode-label">{mode==='demo'?t('Демо-версия','Demo'):t('AI подключение','AI connected')}</span>
+     <button className="icon-button" aria-label={dark?t('Светлая тема','Light mode'):t('Тёмная тема','Dark mode')} onClick={()=>setDark(!dark)}>{dark?<Sun size={20}/>:<Moon size={20}/>}</button>
+     <button onPointerEnter={()=>prefetchScreen('profile')} onFocus={()=>prefetchScreen('profile')} className="topbar__profile" onClick={()=>setModal('profile')} aria-label={t('Открыть профиль','Open profile')}>{email?email[0].toUpperCase():'В'}</button>
+    </div>
+   </header>
   <main id="main-content" className={`main${isChat?' main--chat':''}`} tabIndex={-1}>
    {!persisted&&<p className="notice" role="status">{t('Браузер ограничил сохранение. Придётся ввести код при следующем открытии.','Browser storage is restricted. Sign in again next time.')}</p>}
    {!online&&!isChat&&<p className="offline-note" role="status"><WifiOff size={16}/> {t('Офлайн. Сохранённые чаты и деморежим доступны.','Offline. Saved chats and demos are available.')}</p>}
    {!saved&&<p role="alert" className="notice notice--error">{t('Не удалось прочитать или сохранить кеш. Новые изменения доступны до закрытия страницы.','Storage is unavailable. New changes will last until this page closes.')}</p>}
    {isChat?assistant?<Suspense fallback={<ScreenSkeleton/>}><PrivateChat assistant={assistant} conversation={conversation} profile={profile}
-    messagePrice={wallet.price} mode={mode} online={online} busy={busy} draft={draft} error={error}
-    onDraft={text=>setDrafts(current=>({...current,[chatKey]:text}))} onSend={submitChat} model={model} onModel={setModel}/></Suspense>
+    messagePrice={wallet.price} mode={mode} online={online} busy={busy} drafts={drafts} error={error}
+    onSend={submitChat} model={model} onModel={setModel}/></Suspense>
     :<PageState kind="conversation" href="#/history"/>:
    page==='history'?<section><p className="eyebrow">{t('ПРОДОЛЖИМ С ТОГО ЖЕ МЕСТА','PICK UP WHERE YOU LEFT OFF')}</p><h1 className="section-title">{t('Ваши разговоры','Your chats')}</h1><div className="chat-tabs"><a className="chat-tabs__link chat-tabs__link--active" href="#/history">{t('Личные','Private')}</a><a className="chat-tabs__link" onPointerEnter={()=>prefetchScreen('rooms')} onFocus={()=>prefetchScreen('rooms')} href="#/rooms"><Users size={17}/>{t('Общие комнаты','Groups')}</a></div><p className="section-description">{t('Идеи и решения, к которым можно вернуться. Сохранено в этом браузере.','Your saved chats in this browser.')}</p>{state.conversations.length?<div className="history-list">{[...state.conversations].sort((a,b)=>b.updatedAt-a.updatedAt).map(c=>{const a=all.find(a=>a.id===c.assistantId);return <a className="history-item" key={c.id} onFocus={prefetchChat} onPointerEnter={prefetchChat} href={`#/chat/${c.id}`}><span className={`avatar avatar--${a?.color??'lime'}`}><AgentIcon name={a?.icon??'Sparkles'}/></span><span className="history-item__text"><strong>{c.title}</strong><span>{a?.name} · {c.messages.length} {t('сообщений','messages')}</span></span><span className="history-item__date">{new Date(c.updatedAt).toLocaleDateString(language,{day:'numeric',month:'short'})}</span><ChevronRight size={17}/></a>;})}</div>:<Empty title={t('Здесь начнётся ваша история','Your history starts here')} text={t('Первый разговор появится здесь, когда вы отправите сообщение помощнику.','Send your first message to start your history.')}/>}</section>:
    page==='rooms'||page==='join'?<Suspense fallback={<ScreenSkeleton/>}><Rooms key={`${page}/${id??''}/${profile.id}`} roomId={page==='rooms'?id:undefined} joinToken={page==='join'?id:undefined} profile={profile} onSend={showFirstSend} language={language} messagePrice={wallet.price} billMessage={chargeMessage}/></Suspense>:['assistants','characters','favorites',undefined].includes(page)?<>

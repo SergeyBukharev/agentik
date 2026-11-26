@@ -264,8 +264,8 @@
   width: min(100%, 230px);
 }
 
-.scene__signal { animation: drift-signal 9s linear infinite; }
-.scene__signal-point { animation: pulse 3s ease-in-out infinite; }
+.scene__signal { animation: drift-signal 3.4s ease-in-out; }
+.scene__signal-point { animation: pulse 3s ease-in-out; }
 
 .page-state__content {
   min-inline-size: 0;
@@ -459,7 +459,7 @@
   100% { transform: scale(1.15); opacity: 0; }
 }
 @keyframes drift-signal {
-  to { stroke-dashoffset: -110; }
+  50% { stroke-dashoffset: -12; }
 }
 
 @media (min-width: 641px) {

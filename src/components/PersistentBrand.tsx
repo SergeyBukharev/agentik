@@ -1,8 +1,11 @@
-import {useEffect, useRef} from 'react';
+import {useEffect, useRef, useState, type KeyboardEvent} from 'react';
+import {LayoutGrid, Palette, FileText} from 'lucide-react';
 import {useUi} from '../language';
+import {kitPages, kitPaths} from '../kits';
 import {allowsMotion} from './ShaderEffects';
 
 export type BrandLock = 'closed' | 'open';
+const kitIcons = {'ui-kit': LayoutGrid, 'brand-kit': Palette, 'press-kit': FileText};
 
 export function PersistentBrand({href, route, onAccess, lock}: {
   href: string;
@@ -12,6 +15,9 @@ export function PersistentBrand({href, route, onAccess, lock}: {
 }) {
   const {t} = useUi();
   const mark = useRef<HTMLImageElement>(null);
+  const anchor = useRef<HTMLAnchorElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const previous = useRef(route);
   useEffect(() => {
     if (route === previous.current) return;
@@ -26,12 +32,53 @@ export function PersistentBrand({href, route, onAccess, lock}: {
     return () => animation.cancel();
   }, [route]);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    menu.current?.querySelector('a')?.focus({preventScroll:true});
+    const closeOutside = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Node && !menu.current?.contains(target) && !anchor.current?.contains(target)) setMenuOpen(false);
+    };
+    const close = () => setMenuOpen(false);
+    document.addEventListener('pointerdown', closeOutside);
+    window.addEventListener('hashchange', close);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      window.removeEventListener('hashchange', close);
+    };
+  }, [menuOpen]);
+
+  function menuKeys(event: KeyboardEvent<HTMLDivElement>) {
+    const links = Array.from(event.currentTarget.querySelectorAll('a'));
+    if (event.key === 'Escape' || event.key === 'Tab') {
+      if (event.key === 'Escape') event.preventDefault();
+      setMenuOpen(false);
+      anchor.current?.focus({preventScroll:true});
+      return;
+    }
+    const current = links.indexOf(document.activeElement as HTMLAnchorElement);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? links.length - 1
+      : event.key === 'ArrowDown' ? (current + 1) % links.length
+      : event.key === 'ArrowUp' ? (current - 1 + links.length) % links.length : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    links[next]?.focus({preventScroll:true});
+  }
+
   return (
-    <a className="persistent-brand" href={href} data-tone={onAccess ? 'access' : 'default'}
-      aria-label={t('Agentik — главная', 'Agentik home')}>
+    <>
+    <a className="persistent-brand" href={href} data-tone={onAccess ? 'access' : 'default'} ref={anchor}
+      aria-label={t('Agentik — главная', 'Agentik home')} aria-haspopup="menu" aria-expanded={menuOpen}
+      aria-keyshortcuts="Shift+F10" onClick={() => setMenuOpen(false)}
+      onContextMenu={event => {event.preventDefault(); setMenuOpen(true);}}
+      onKeyDown={event => {
+        if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
+        event.preventDefault();
+        setMenuOpen(true);
+      }}>
       <img ref={mark} className="persistent-brand__mark" src={import.meta.env.BASE_URL+'favicon.svg'}
         alt="" width="35" height="35" draggable={false}/>
-      <span className="persistent-brand__word">agentik<span>.</span></span>
+      <span className="persistent-brand__word">agentik</span>
       {lock && (
         <svg className="persistent-brand__lock" data-lock={lock} viewBox="0 0 24 24" fill="none" aria-hidden="true"
           stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -41,5 +88,15 @@ export function PersistentBrand({href, route, onAccess, lock}: {
         </svg>
       )}
     </a>
+    {menuOpen && <div className="persistent-brand-menu" role="menu" aria-label={t('Материалы Agentik','Agentik kits')}
+      ref={menu} onKeyDown={menuKeys}>
+      {kitPaths.map(kit => {
+        const Icon = kitIcons[kit];
+        return <a key={kit} href={import.meta.env.BASE_URL + '#/' + kit} role="menuitem" tabIndex={-1} onClick={() => setMenuOpen(false)}>
+          <Icon size={17} aria-hidden="true"/>{t(...kitPages[kit])}
+        </a>;
+      })}
+    </div>}
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import {useState, type FormEvent} from 'react';
+import {memo, useState, type FormEvent} from 'react';
 import {Link2, LockKeyhole, Plus, Users} from 'lucide-react';
 import type {ChatImage} from '../chat-media';
 import type {Language} from '../language';
@@ -21,6 +21,21 @@ type RoomsProps = {
   messagePrice?: number;
   billMessage?: (commit:()=>boolean) => Promise<boolean>;
 };
+
+const RoomMessages = memo(function RoomMessages({messages, profileId, language}: {
+  messages: LocalRoom['messages'];
+  profileId: string;
+  language: Language;
+}) {
+  const clock = new Intl.DateTimeFormat(language, {hour:'2-digit', minute:'2-digit'});
+  return messages.map(message => (
+    <article className={'message'+(message.userId === profileId ? ' message--user' : '')} key={message.id}>
+      <span className="message__author">{message.name} · {clock.format(message.createdAt)}</span>
+      {message.body && <p className="message__body">{message.body}</p>}
+      <MessageImages images={message.images}/>
+    </article>
+  ));
+});
 
 export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, messagePrice, billMessage}: RoomsProps) {
   const t = (ru: string, en: string) => language === 'en' ? en : ru;
@@ -128,19 +143,13 @@ export function Rooms({roomId, joinToken, profile, language = 'ru', onSend, mess
             </button>
           </div>
         </header>
-        <div className="chat__messages room-message-list" aria-live="polite">
+        <div className="chat__messages room-message-list" aria-live="polite" data-long-thread={room.messages.length > 60 || undefined}>
           {!room.messages.length && <div className="chat-welcome">
             <Scene kind="together"/>
             <WelcomeTitle text={t('Начните с «привет»', 'Say hello')}/>
             <p className="chat-welcome__text">{t('Напишите сообщение или пригласите другого участника.', 'Write a message or invite another member.')}</p>
           </div>}
-          {room.messages.map(message => (
-            <article className={'message'+(message.userId === profile.id ? ' message--user' : '')} key={message.id}>
-              <span className="message__author">{message.name} · {new Date(message.createdAt).toLocaleTimeString(language, {hour:'2-digit', minute:'2-digit'})}</span>
-              {message.body && <p className="message__body">{message.body}</p>}
-              <MessageImages images={message.images}/>
-            </article>
-          ))}
+          <RoomMessages messages={room.messages} profileId={profile.id} language={language}/>
         </div>
         {error && <p className="notice notice--error" role="alert">{error}</p>}
         <ChatComposer draft={draft} onDraft={setDraft} onSubmit={(images, anchor) => {

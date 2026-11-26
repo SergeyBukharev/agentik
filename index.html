@@ -15,7 +15,6 @@
     .app-boot__mark { position:fixed;z-index:9999;inset-block-start:max(15px,env(safe-area-inset-top));inset-inline-start:max(18px,env(safe-area-inset-left));min-height:44px;display:inline-flex;align-items:center;gap:8px;box-sizing:border-box;padding:4px 9px 4px 4px;border:1px solid #e7eae2;border-radius:14px;background:#fff;font:800 25px/1 system-ui,sans-serif;letter-spacing:-.045em; }
     .app-boot__mark img { display:block;width:35px;height:35px;border-radius:10px; }
     @media (max-width:640px) { .app-boot__mark { inset-block-start:max(10px,env(safe-area-inset-top));inset-inline-start:max(13px,env(safe-area-inset-left)); } }
-    .app-boot__mark b { color: #779655; }
     .app-boot__body [data-skeleton-level] { position: relative; overflow: hidden; --boot-shine: #f9faf5; background: #ebefe7; }
     .app-boot__body [data-skeleton-level='media'] { --boot-shine: #eef6d6; background: #dce8cc; }
     .app-boot__body [data-skeleton-level]::before { content: ''; position: absolute; inset: 0; background: linear-gradient(106deg, transparent 22%, var(--boot-shine) 51%, transparent 79%); transform: translateX(-105%); animation: boot-shimmer 1.6s ease-in-out 2; }
@@ -36,7 +35,7 @@
 <body>
   <div id="root" data-h2d-ignore="true">
     <div class="app-boot" role="status" aria-label="Загрузка Agentik">
-      <span class="app-boot__mark" aria-hidden="true"><img src="/favicon.svg" alt="" width="35" height="35"/><span>agentik<b>.</b></span></span>
+      <span class="app-boot__mark" aria-hidden="true"><img src="/favicon.svg" alt="" width="35" height="35"/><span>agentik</span></span>
       <div class="app-boot__body" aria-hidden="true">
         <span class="app-boot__bar" data-skeleton-level="surface"></span>
         <span class="app-boot__preview" data-skeleton-level="surface">

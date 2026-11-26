@@ -1,0 +1,24 @@
+.prompt-list__item {
+  min-height: 44px;
+  min-width: 0;
+}
+
+.prompt-list__item:disabled {
+  opacity: .58;
+}
+
+.prompt-list--conversation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+  margin-block-end: 9px;
+}
+
+.prompt-list--conversation .prompt-list__item {
+  max-width: 100%;
+  padding: 6px 11px;
+  gap: 8px;
+  font-size: 12px;
+}

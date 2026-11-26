@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react';
+import {kitPaths, type KitPage} from './kits';
 
-export type Route = {page?: string; id?: string; path: string; kind: 'home' | 'login' | 'agreement' | 'workspace' | 'not-found'; homeHref: string};
+export type Route = {page?: string; id?: string; path: string; kind: 'home' | 'login' | 'agreement' | 'kit' | 'workspace' | 'not-found'; kit?: KitPage; homeHref: string};
 const simple = new Set(['assistants', 'characters', 'favorites', 'history', 'rooms', 'profile', 'pro', 'create']);
 const detail = new Set(['assistant', 'chat', 'rooms', 'join']);
 
@@ -12,6 +13,8 @@ export function resolveRoute(pathname: string, hash: string, base = import.meta.
   if (path === '/') return {kind: 'home', path, homeHref};
   if (path === '/agreement') return {kind: 'agreement', path, homeHref};
   if (path === '/login') return {kind: 'login', path, homeHref};
+  const kit = kitPaths.find(item => path === `/${item}` || path === `/${item}/`);
+  if (kit) return {kind: 'kit', kit, path, homeHref};
   const match = /^\/([a-z]+)(?:\/([a-zA-Z0-9_-]{1,128}))?\/?$/.exec(path);
   if (match) {
     const [, page, id] = match;

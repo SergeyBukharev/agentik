@@ -1,16 +1,32 @@
-import {useRef} from 'react';
-import {ChevronLeft, Plus, WifiOff} from 'lucide-react';
+import {memo, useRef, useSyncExternalStore} from 'react';
+import {ChevronLeft, WifiOff} from 'lucide-react';
 import type {Assistant} from '../catalog';
 import type {Conversation} from '../state';
 import {AgentIcon} from './Brand';
 import {WelcomeTitle} from './ShaderEffects';
 import {ChatComposer, MessageImages} from './ChatComposer';
 import {ChatSharing} from './ChatSharing';
+import {ChatSuggestions} from './ChatSuggestions';
 import type {ChatImage, ChatModel} from '../chat-media';
+import type {ChatDrafts} from '../chat-drafts';
 import type {LocalProfile} from '../session';
 import {useUi} from '../language';
 
-export function PrivateChat({assistant, conversation, profile, messagePrice, mode, online, busy, draft, error, onDraft, onSend, model, onModel}: {
+const PrivateMessages = memo(function PrivateMessages({messages, assistantName, userName}: {
+  messages: Conversation['messages'];
+  assistantName: string;
+  userName: string;
+}) {
+  return messages.map((message, index) => (
+    <article className={`message message--${message.role}`} key={index}>
+      <span className="message__author">{message.role === 'user' ? userName : assistantName}</span>
+      {message.content && <p className="message__body">{message.content}</p>}
+      <MessageImages images={message.images}/>
+    </article>
+  ));
+});
+
+export function PrivateChat({assistant, conversation, profile, messagePrice, mode, online, busy, drafts, error, onSend, model, onModel}: {
   assistant: Assistant;
   conversation?: Conversation;
   profile: LocalProfile;
@@ -18,9 +34,8 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
   mode: 'demo' | 'live';
   online: boolean;
   busy: boolean;
-  draft: string;
+  drafts: ChatDrafts;
   error?: string;
-  onDraft: (text: string) => void;
   onSend: (retry: boolean, anchor: HTMLElement | null, images?:ChatImage[]) => boolean | Promise<boolean>;
   model: ChatModel;
   onModel: (model: ChatModel) => void;
@@ -28,6 +43,8 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
   const {t,language}=useUi();
   const draftField = useRef<HTMLTextAreaElement>(null);
   const routeKey = conversation?.id ?? 'new:' + assistant.id;
+  const draft = useSyncExternalStore(drafts.subscribe, () => drafts.get(routeKey));
+  const onDraft = (text: string) => drafts.set(routeKey, text);
   const composer = useRef({route:routeKey, epoch:0, createdId:''});
   if (composer.current.route !== routeKey) {
     if (composer.current.createdId !== routeKey) composer.current.epoch++;
@@ -37,7 +54,14 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
   const offlineAi = mode === 'live' && !online;
   const lastMessage = conversation?.messages.at(-1);
   const canRetry = !busy && lastMessage?.role === 'user';
-
+  const hasMessages = Boolean(conversation?.messages.length);
+  const suggestions = <ChatSuggestions assistant={assistant} draft={draft} compact={hasMessages} busy={busy}
+    onApply={next => {
+      const field = draftField.current;
+      if (!field || field.readOnly) return;
+      onDraft(next);
+      field.focus();
+    }}/>;
 
   return (
     <section className="chat">
@@ -55,25 +79,13 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
           <a className="button button--secondary" href={`#/assistant/${assistant.id}`}>{t('Новый разговор','New chat')}</a>
         </div>}
       </div>
-      <div className="chat__messages" aria-live="polite" aria-busy={busy}>
-        {conversation?.messages.length ? conversation.messages.map((message, index) => (
-          <article className={`message message--${message.role}`} key={index}>
-            <span className="message__author">{message.role === 'user' ? t('Вы','You') : assistant.name}</span>
-            {message.content && <p className="message__body">{message.content}</p>}
-            <MessageImages images={message.images}/>
-          </article>
-        )) : (
+      <div className="chat__messages" aria-live="polite" aria-busy={busy} data-long-thread={(conversation?.messages.length ?? 0) > 60 || undefined}>
+        {conversation?.messages.length ? <PrivateMessages messages={conversation.messages} assistantName={assistant.name} userName={t('Вы','You')}/> : (
           <div className="chat-welcome">
             <span className={`avatar avatar--large avatar--${assistant.color}`}><AgentIcon name={assistant.icon} size={32}/></span>
             <WelcomeTitle key={routeKey}/>
             <p className="chat-welcome__text">{assistant.description}</p>
-            <div className="prompt-list">
-              {assistant.prompts.map(prompt => (
-                <button className="prompt-list__item" key={prompt} onClick={() => {onDraft(prompt); draftField.current?.focus();}}>
-                  <span>{prompt}</span><Plus size={17}/>
-                </button>
-              ))}
-            </div>
+            {suggestions}
           </div>
         )}
         {busy && <p role="status" className="chat__loading chat__loading--skeleton" data-skeleton-level="surface"><span/>{t('Готовим ответ…','Preparing a reply…')}</p>}
@@ -85,6 +97,7 @@ export function PrivateChat({assistant, conversation, profile, messagePrice, mod
           <button className="button button--text" disabled={offlineAi} onClick={() => onSend(true, null)}>{t('Повторить запрос','Try again')}</button>
         </div>
       )}
+      {hasMessages && suggestions}
       <ChatComposer key={composer.current.epoch} fieldRef={draftField} draft={draft} onDraft={onDraft}
         busy={busy} disabled={offlineAi} model={model} onModel={onModel}
         price={messagePrice} retryDraft={!!(canRetry && draft.trim() && lastMessage.content === draft.trim())}

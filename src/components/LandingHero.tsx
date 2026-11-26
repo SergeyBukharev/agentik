@@ -6,16 +6,15 @@ import {Scene} from './Scene';
 import {useUi} from '../language';
 
 const art = import.meta.env.BASE_URL + 'illustrations/ideas.svg';
-// Use the same viewBox and silhouette as the exported art while its request is pending.
-const placeholderSilhouette = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220">
+// Keep the shader mask static, independently of the animation inside the exported illustration.
+const silhouette = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220">
   <rect x="70" y="51" width="142" height="123" rx="31" transform="rotate(-9 141 112)"/>
   <rect x="211" y="66" width="63" height="74" rx="9" transform="rotate(12 242 103)"/>
   <circle cx="124" cy="31" r="6"/><path d="m128 52-3-15M80 153c-28 1-29 19-17 24M193 151c20-9 28-1 29 10" fill="none" stroke="black" stroke-width="3" stroke-linecap="round"/>
   <path d="m253 29 0 24m-12-12h24m-20-8 16 16m-16 0 16-16" fill="none" stroke="black" stroke-width="3" stroke-linecap="round"/>
   <circle cx="41" cy="87" r="7"/><path d="m45 161 4 9 10 1-8 6 2 10-8-6-9 5 3-10-7-7 10 1 3-9Z"/>
 </svg>`;
-const pendingMask = { '--media-mask': `url("data:image/svg+xml,${encodeURIComponent(placeholderSilhouette)}")` } as CSSProperties;
-const readyMask = { '--media-mask': `url("${art}")` } as CSSProperties;
+const mediaMask = { '--media-mask': `url("data:image/svg+xml,${encodeURIComponent(silhouette)}")` } as CSSProperties;
 
 export function LandingHero({signedIn = false}: {signedIn?: boolean}) {
   const {t} = useUi();
@@ -91,12 +90,12 @@ export function LandingHero({signedIn = false}: {signedIn?: boolean}) {
             onError={() => setStatus('fallback')}
           />
           {status === 'loading' && (
-            <div className="media-skeleton" style={pendingMask} data-skeleton-level="media" aria-hidden="true">
+            <div className="media-skeleton" style={mediaMask} data-skeleton-level="media" aria-hidden="true">
               <ShaderLayer effect="skeleton" duration={1400}/>
             </div>
           )}
           {status === 'ready' && (
-            <div className="media-reveal-layer" style={readyMask} aria-hidden="true">
+            <div className="media-reveal-layer" style={mediaMask} aria-hidden="true">
               <ShaderLayer effect="reveal" duration={690}/>
             </div>
           )}

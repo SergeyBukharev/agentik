@@ -30,7 +30,7 @@ test('moves the hero spotlight on pointer input and respects reduced motion', as
   await expect(light).toHaveCSS('display', 'none');
 });
 
-test('uses separate skeleton surfaces and a silhouette mask for the pending illustration', async ({page}) => {
+test('uses separate skeleton surfaces and a static silhouette for the illustration effects', async ({page}) => {
   await page.emulateMedia({reducedMotion: 'reduce'});
   let release!: () => void;
   const ready = new Promise<void>(resolve => {release = resolve;});
@@ -51,10 +51,12 @@ test('uses separate skeleton surfaces and a silhouette mask for the pending illu
 
   const svg = page.locator('.reveal-media');
   await expect(svg).toHaveAttribute('data-status', 'loading');
-  await expect(svg.locator('.media-skeleton')).toHaveCSS('mask-image', /data:image\/svg\+xml/);
+  const pending = svg.locator('.media-skeleton');
+  await expect(pending).toHaveCSS('mask-image', /data:image\/svg\+xml/);
+  const silhouette = await pending.evaluate(node => getComputedStyle(node).maskImage);
   release();
   await expect(svg).toHaveAttribute('data-status', 'ready');
-  await expect(svg.locator('.media-reveal-layer')).toHaveCSS('mask-image', /illustrations\/ideas\.svg/);
+  await expect(svg.locator('.media-reveal-layer')).toHaveCSS('mask-image', silhouette);
   await expect(skeleton).toHaveCount(0);
 });
 
@@ -76,7 +78,7 @@ test('fills category icon backgrounds and gives design and product distinct moti
   await expect(productBody).not.toHaveCSS('transform', designTransform);
 });
 
-test('keeps 18px sidebar padding and continuous PRO gradients in both themes', async ({page}) => {
+test('keeps 18px sidebar padding and the lime PRO button in both themes', async ({page}) => {
   await openCatalog(page);
   const sidebar = page.locator('.sidebar');
   const button = sidebar.locator('.button--pro');
@@ -86,39 +88,15 @@ test('keeps 18px sidebar padding and continuous PRO gradients in both themes', a
     await expect(button).toBeVisible();
   }
 
-  const appearance = () => button.evaluate(node => {
-    const field = getComputedStyle(node, '::before');
-    const highlights = getComputedStyle(node, '::after');
-    return {
-      fill: getComputedStyle(node).backgroundColor,
-      field: field.backgroundImage,
-      width: parseFloat(field.width),
-      height: parseFloat(field.height),
-      diagonal: Math.hypot(node.clientWidth, node.clientHeight),
-      highlights: highlights.backgroundImage,
-      opacity: highlights.opacity,
-      animation: field.animationName,
-      playState: field.animationPlayState,
-    };
-  });
-
-  const light = await appearance();
-  expect(light.field).toMatch(/conic-gradient\([^,]* in oklch/);
-  expect(light.highlights.match(/radial-gradient/g)).toHaveLength(3);
-  expect(light.width).toBeCloseTo(light.height, 0);
-  expect(light.width).toBeGreaterThan(light.diagonal);
-  expect(light.animation).toBe('pro-gradient-turn');
-  expect(light.playState).toBe('paused');
-
+  await expect(button).toHaveCSS('background-color', 'rgb(212, 245, 138)');
+  await expect(button).toHaveCSS('background-image', 'none');
   await button.hover();
-  await expect.poll(async () => (await appearance()).opacity).toBe('1');
-  expect((await appearance()).playState).toBe('running');
+  await expect(button.locator('canvas')).toHaveCount(0);
   await page.getByRole('button', {name: 'Тёмная тема'}).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect.poll(async () => (await appearance()).fill).not.toBe(light.fill);
-  const dark = await appearance();
-  expect(dark.field).not.toBe(light.field);
-  expect(dark.highlights.match(/radial-gradient/g)).toHaveLength(3);
-  await page.emulateMedia({reducedMotion: 'reduce'});
-  expect((await appearance()).animation).toBe('none');
+  await expect(button).toHaveCSS('background-color', 'rgb(212, 245, 138)');
+  await expect(button).toHaveCSS('border-top-width', '0px');
+  await page.keyboard.press('Tab');
+  await button.focus();
+  await expect(button).toHaveCSS('outline-style', 'solid');
 });

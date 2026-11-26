@@ -1,7 +1,7 @@
-export type ShaderEffect = 'welcome' | 'pulse' | 'skeleton' | 'reveal' | 'pro';
+export type ShaderEffect = 'welcome' | 'pulse' | 'skeleton' | 'reveal';
 export type Point = {x: number; y: number};
 
-const budgets = {welcome: 48_000, pulse: 86_000, skeleton: 48_000, reveal: 100_000, pro: 18_000} satisfies Record<ShaderEffect, number>;
+const budgets = {welcome: 48_000, pulse: 86_000, skeleton: 48_000, reveal: 100_000} satisfies Record<ShaderEffect, number>;
 let webglUnavailable = false;
 
 const vertex = `
@@ -59,11 +59,6 @@ const fragments: Record<ShaderEffect, string> = {
   skeleton: `
     float line = bell(sweep, .13) * .30 + bell(sweep + .18, .24) * .12;
     gl_FragColor = vec4(mix(mint, vec3(.93, 1., .83), bell(sweep, .065)), line * envelope);
-  `,
-  pro: `
-    float arc = uv.y - sin(uv.x * 4.6 - time * 3.) * .29 - mix(-.25, 1.25, time);
-    float glimmer = bell(arc, .31) * envelope;
-    gl_FragColor = vec4(mix(mint, lime, smoothstep(.08, .96, uv.x)), glimmer * .41);
   `,
   reveal: `
     float ripple = .02 * sin(uv.y * 36. + uv.x * 10.) + .013 * sin(uv.y * 81.);

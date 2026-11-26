@@ -2,10 +2,36 @@
   position: relative;
   min-width: 0;
 }
+
+.chat__messages[data-long-thread] > .message {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 96px;
+}
 .composer--tools {
   display: grid;
   gap: 5px;
   padding: 9px;
+}
+.composer__editor {
+  position: relative;
+  min-width: 0;
+}
+.composer__editor .composer__input {
+  display: block;
+  width: 100%;
+  padding-inline-end: 48px;
+  resize: none;
+}
+.composer__input[data-expanded='true'] {
+  height: min(300px, 42dvh);
+  max-height: none;
+}
+.composer__expand {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  width: 44px;
+  height: 44px;
 }
 .composer__toolbar {
   display: flex;
@@ -121,6 +147,7 @@
 @media(max-width: 640px) {
   .composer-stack { position: sticky; bottom: calc(72px + env(safe-area-inset-bottom)); z-index: 4; }
   .composer-stack .composer { position: relative; bottom: auto; }
+  .composer__input[data-expanded='true'] { height: min(210px, 38dvh); }
   .chat__header { flex-wrap: wrap; }
   .chat__header-actions { margin-inline-start: auto; }
   .mobile__preferences { display: flex; gap: 6px; align-items: center; }
@@ -132,9 +159,6 @@
   .composer__preparing { display: none; }
 }
 
-.button--pro { isolation: isolate; overflow: hidden; }
-.button--pro .shader-layer--pro { z-index: -1; }
-.button--pro > span, .button--pro > svg { position: relative; }
 .chat__loading--skeleton {
   position: relative;
   width: min(340px, 88%);
@@ -169,18 +193,19 @@
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
+  justify-content: center;
   gap: 5px;
   padding: 5px 8px;
-  min-height: 38px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 10px;
   background: var(--soft);
   color: var(--ink);
 }
 
+.account-balance:is(button):hover { background: var(--lime-soft); }
 .account-balance > svg { color: var(--focus); }
-.account-balance div { display: grid; line-height: 1.05; }
-.account-balance span { color: var(--muted); font-size: 10px; }
-.account-balance output { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.account-balance :is(span, output) { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .composer__toolbar { flex-wrap: wrap; }
 .composer__send-group {
