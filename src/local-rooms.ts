@@ -15,3 +15,6 @@ export function joinLocalRoom(s:Store,user:Player,invite:string,now=Date.now()):
 export function postLocalMessage(s:Store,user:Player,id:string,body:string,now=Date.now()):void{
  const rooms=read(s,now),room=rooms.find(r=>r.id===id&&r.members.some(m=>m.id===user.id));if(!room)throw new Error('У профиля нет доступа к этой комнате.');if(!body.trim()||body.trim().length>6000)throw new Error('Сообщение должно содержать от 1 до 6000 символов.');room.messages.push({id:crypto.randomUUID(),userId:user.id,name:user.name,body:body.trim(),createdAt:now});room.messages=room.messages.slice(-500);room.expiresAt=now+SESSION_MS;write(s,rooms);
 }
+export function renewLocalInvite(s:Store,user:Player,id:string,now=Date.now()):string{
+ const rooms=read(s,now),room=rooms.find(r=>r.id===id&&r.members.some(m=>m.id===user.id));if(!room)throw new Error('У профиля нет доступа к этой комнате.');if(room.inviteExpiresAt<=now){room.invite=crypto.randomUUID();room.inviteExpiresAt=now+86400000;room.expiresAt=now+SESSION_MS;write(s,rooms);}return room.invite;
+}

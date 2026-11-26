@@ -57,3 +57,17 @@ it('keeps a delayed response in its original conversation after navigation',asyn
  await waitFor(()=>expect(JSON.parse(localStorage.getItem(`agentik:state:${localStorage.getItem('agentik:active')}`)!).conversations[0].messages).toHaveLength(2));
  expect(screen.queryByText('Ответ редактора')).not.toBeInTheDocument();
 });
+it('preserves an edited draft when retrying the previously failed message',async()=>{
+ let attempts=0;const u=userEvent.setup();render(<App requestReply={async()=>{if(attempts++===0)throw new Error('Нет связи');return 'Ответ';}}/>);
+ await u.click(screen.getByRole('link',{name:'Открыть: Редактор'}));
+ await u.type(screen.getByRole('textbox',{name:'Ваше сообщение'}),'Первый текст');await u.click(screen.getByRole('button',{name:'Отправить сообщение'}));
+ await screen.findByRole('alert');await u.clear(screen.getByRole('textbox',{name:'Ваше сообщение'}));await u.type(screen.getByRole('textbox',{name:'Ваше сообщение'}),'Новый черновик');
+ await u.click(screen.getByRole('button',{name:'Повторить запрос'}));await screen.findByText('Ответ');
+ expect(screen.getByRole('textbox',{name:'Ваше сообщение'})).toHaveValue('Новый черновик');
+});
+it('starts a new conversation with an empty draft while the previous reply is pending',async()=>{
+ const u=userEvent.setup();render(<App requestReply={()=>new Promise(()=>{})}/>);
+ await u.click(screen.getByRole('link',{name:'Открыть: Редактор'}));await u.type(screen.getByRole('textbox',{name:'Ваше сообщение'}),'Первый запрос');
+ await u.click(screen.getByRole('button',{name:'Отправить сообщение'}));await u.click(screen.getByRole('link',{name:'Новый разговор'}));
+ expect(screen.getByRole('textbox',{name:'Ваше сообщение'})).toHaveValue('');
+});

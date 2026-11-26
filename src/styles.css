@@ -57,3 +57,5 @@
  @keyframes sheet-in{from{translate:0 20px;opacity:0}to{translate:0 0;opacity:1}}
  @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 }
+
+@layer responsive { @media(max-width:640px){.category-list{scrollbar-width:none}.category-list::-webkit-scrollbar{display:none}.topbar__menu{display:none}} }

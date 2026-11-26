@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { catalog, filterAssistants } from './catalog';
-import { emptyState, loadState, saveState } from './state';
+import { emptyState, loadState, readState, saveState } from './state';
 describe('catalog', () => {
   it('contains 30 practical assistants and 6 characters', () => {
     expect(catalog.filter(a=>a.kind==='assistant')).toHaveLength(30);
@@ -27,5 +27,9 @@ describe('persistence', () => {
   it('reports unavailable storage', () => {
     expect(saveState({setItem(){throw new Error('quota')}},emptyState())).toBe(false);
     expect(loadState({getItem(){throw new Error('denied')}})).toEqual(emptyState());
+  });
+  it('retains valid records and flags a partly corrupted cache',()=>{
+    localStorage.setItem('agentik:state:alice',JSON.stringify({...emptyState(),expiresAt:Date.now()+10000,favorites:['writer',2],conversations:[{id:'c',assistantId:'writer',title:'Письмо',updatedAt:1,messages:[]},{messages:null}]}));
+    const result=readState(localStorage,'alice');expect(result.state.conversations.map(c=>c.id)).toEqual(['c']);expect(result.status).toBe('corrupt');
   });
 });
